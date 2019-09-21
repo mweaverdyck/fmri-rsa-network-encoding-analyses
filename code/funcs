@@ -1,0 +1,365 @@
+#!/bin/bash
+# funcs
+
+fsl_v=fsl/5.0.10
+python_v=python/3.6.1 #2.7.13_shared
+fmriprep_v=fmriprep/1.3.2
+source ${HOME}/.bash_profile
+
+EXCLUDE_SUBS=( "204" )
+
+# Global Project Variables
+# directories
+export PROJECT_DIR=$data_dir #'/u/project/CCN/cparkins/data/encoding'
+export BIDS_DIR="${PROJECT_DIR}/bids"
+export CODE_DIR="${PROJECT_DIR}/code"
+export QA_DIR="${BIDS_DIR}/qa"
+export FMRIPREP_DIR="${BIDS_DIR}/fmriprep"
+export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
+#export NISTATS_DIR="${FIRST_LEVEL_DIR}/nistats_glm"
+#export PYMVPA_DIR="${FIRST_LEVEL_DIR}/pymvpa_searchlight"
+export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
+export GLM_DIR="${FIRST_LEVEL_DIR}/glm"
+export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
+export MNI_DIR="${BIDS_DIR}/mni_icbm152_nlin_asym_09c/Schaefer"
+
+# project settings
+export SUBID_PREFIX="sub-"
+export TASKS=( "friend" "number" )
+export NODES=( {0..9} )
+export N_NODES=10
+export N_TRS=514
+export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
+export N_PARCELS=800
+export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels17Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+#export MNI_MASK_DIL="${MNI_DIR}/2mm_brainmask_dil-5.nii.gz"
+#export SUB_MASK="sub-???_desc-brain_mask.nii.gz"
+# possible spaces
+SPACES=( "T1w" "MNI152NLin2009cAsym" )
+export SPACE=${SPACES[0]}
+NUMID_FORM='^[0-9][0-9][0-9]'
+SUBID_FORM="^${SUBID_PREFIX}[0-9][0-9][0-9]"
+RE_NUM='^[0-9]+$'
+# are you on your local computer (1) or hoffman (0)
+if [ ${HOME:0:3} == '/u/' ]; then isLocal=0; else isLocal=1; fi
+
+# how to run steps
+alias get_outline='echo "To run full analysis:
+
+    1. # copy behavioral files (from mount)
+       . copy_behav ???
+
+    2. # copy dicom files (from server qrsh node)
+       qrsh
+       . copy_dcm ???
+
+    3. # reformat to BIDS (from mount)
+       python organize_as_BIDS.py ???
+
+    4. # first level analyses (from server)
+       . run_script full ???
+       . run_script reconall fmriprep_norecon glm rsacorr ???
+
+    5. # Quality Assurance tests (from mount)
+       R qa_motion.R
+       . run_script mriqc ???
+       [R qa_rm_nonsteadystates.R] (automatically runs with glm)
+
+    6. # second level analyses (from mount)
+       Rscript --vanilla --verbose level2_ttest_parc.R
+"'
+
+# Standard log output for beginning and end of script
+# argument 1: label
+# argument 2: logfile
+timestamp() {
+	datetime="`date "+%Y-%m-%d %H:%M:%S_func"`"
+}
+# log_datelabel() {
+# 	# combine date and time with label
+# 	datelabel="${datetime} $1:"
+# }
+write_log() {
+	# 3 arguments needed: label, log file, and text to write to log
+	label_arg="$1"
+	logfile_arg="$2"
+	text_arg="$3"
+	# get current date and time
+	timestamp
+	# get date and add label
+	#log_datelabel "$label_arg"
+	echo "${datetime} ${label_arg}: ${text_arg}" | tee -a "$logfile_arg"
+}
+log_begin() {
+	label_arg="$1"
+	logfile_arg="$2"
+	write_log "$label_arg" "$logfile_arg" ""
+	write_log "$label_arg" "$logfile_arg" "BEGIN --------------------------------"
+}
+log_end() {
+	label_arg="$1"
+	logfile_arg="$2"
+	write_log "$label_arg" "$logfile_arg" "DONE  --------------------------------"
+	write_log "$label_arg" "$logfile_arg" ""
+}
+
+is_sub() {
+	if [[ $1 =~ $NUMID_FORM ]] || [[ $1 =~ $SUBID_FORM ]]; then
+    return 1
+  else
+    return 0
+	fi
+}
+
+# local_or_hoffman() {
+# 	# are you on your local computer (1) or hoffman (0)
+# 	if [ ${HOME:0:3} == '/u/' ]; then isLocal=0; else isLocal=1; fi
+# }
+test_local() {
+	if [[ $isLocal -eq 0 ]]; then
+	  echo "ERROR: $1 Must be run on local computer via mount."
+		exit 1
+	fi
+}
+
+test_hoffman() {
+	if [[ $isLocal -eq 1 ]]; then
+	  echo "ERROR: $1 Must be run while logged into the Hoffman2 cluster."
+		exit 1
+	fi
+}
+
+setup_modules() {
+	# call with names of all modules you want to load
+	# if it's_func local, will do nothing
+	# if it's_func not local (i.e., hoffman), will load all arguments as modules
+	#local_or_hoffman
+	# if on hoffman, then load
+	if [ ${isLocal} -eq 0 ]; then
+		# add modules to path
+		. /u/local/Modules/default/init/modules.sh
+		module use /u/project/CCN/apps/modulefiles
+		export PATH=/u/project/CCN/cparkins/data/apps/c3d-1.0.0/bin:/u/project/CCN/cparkins/data/apps/libwebp-0.6.1/bin:/u/project/CCN/cparkins/data/apps/node-v8.9.3/bin:~/.local/bin:$PATH
+		export PATH=${HOME}/.local/bin:$PATH
+		# load each module
+		for arg in "$@"; do module load $arg; done
+		export PATH=${HOME}/.local/bin:$PATH
+	fi
+}
+
+make_n_digits() {
+	# makes any number n digits
+	n_digits=$1
+	arg_number=$2
+	if [[ $n_digits =~ $RE_NUM ]] && [[ $arg_number =~ $RE_NUM ]] ; then
+		printf -v NUM_PAD "%0${n_digits}d" $arg_number
+	else
+		echo "ERROR: $n_digits or $arg_number not a number"
+	fi
+}
+
+function get_subs {
+  d=$1
+  sub_dirs=( $(ls -d ${d}/sub-???) )
+  DIR_SUBS=()
+  for sd in ${sub_dirs[@]}; do
+    s=$(basename $sd)
+    DIR_SUBS+=("$s")
+  done
+  echo ${DIR_SUBS[@]}
+}
+
+function convert_sub_args {
+	# checks subject argument input and converts it
+	# -f format : desired format (subid, numid)
+	# [-c]      : convert to desired format
+	# [-nosub]  : allows for the possibility of no subjects
+
+	func_label="FUNC_SUBS"
+
+	re_num=$NUMID_FORM
+	re_sub=$SUBID_FORM
+
+	f_flag=0
+	c_flag=0
+	nosub_flag=0
+	# intialize subs array
+	in_subs=()
+	for i in "$@"; do
+		# if this element is -c, then convert to requested format
+		if [[ $i == "-c" ]]; then
+			c_flag=1
+			sub_form_next=0
+		elif [[ $i == "-nosub" ]]; then
+			nosub_flag=1
+			sub_form_next=0
+		# if this element is -f, then next is subject format
+		elif [[ $i == "-f" ]]; then
+			f_flag=1
+			sub_form_next=1
+		# if previous element was -f, then this is the subject format
+		elif [[ $sub_form_next -eq 1 ]]; then
+			sub_form=$i
+			sub_form_next=0
+    # # check if subjects=all
+    # elif [[ $i == 'all' ]]; then
+    #   all_subs=1
+    #   all_subs_dir_next=1
+    # elif [[ is_sub($i) -eq 1 ]]; then
+		# 	# subject
+		# 	sub_form_next=0
+	  #   in_subs+=("$i")
+		else
+      #echo "${func_label} WARNING: Unused argument: ${i}"
+			# subject
+			sub_form_next=0
+	    in_subs+=("$i")
+		fi
+	done
+
+	# ERRORS
+	# if -f flag not included
+	if [[ f_flag -eq 0 ]]; then
+		echo "${func_label} ERROR: Must include -f flag with format argument: 'subid' (sub-###) or 'numid' (###). Exiting..." | tee -a ${log_file}
+		exit 1
+	fi
+	if [[ ${sub_form} == 'subid' ]]; then
+		re_sub_form=${re_sub}
+		re_non_sub_form=${re_num}
+	elif [[ ${sub_form} == 'numid' ]]; then
+		re_sub_form=${re_num}
+		re_non_sub_form=${re_sub}
+	else
+		echo "${func_label} ERROR: -f flag argument must be: 'subid' (sub-###) or 'numid' (###). Not: $sub_form. Exiting..." | tee -a ${log_file}
+		exit 1
+	fi
+	# convert excluded subs to correct format
+	exclude_subs_format=()
+	for es in "${EXCLUDE_SUBS[@]}"; do
+		if [[ $es =~ $re_non_sub_form ]]; then
+			if [[ $es =~ $re_num ]]; then
+				# subid format required:
+				es="sub-$es"
+			else
+				# numid format required:
+				es="${es:4}"
+			fi
+		fi
+    exclude_subs_format+=("$es")
+	done
+  echo "Subjects to exclude: ${exclude_subs_format[@]}"
+
+	out_subs=()
+	if [[ ${in_subs} == 'all' ]]; then
+		 # running all subjects
+		 # if next input is directory, find all subject directories in that folder,
+		 # otherwise, use bids directory
+		 if [[ ${#in_subs[@]} -gt 1 ]]; then
+			 # there exists a second input. Must be directory
+			 sub_dir=${in_subs[1]}
+			 # check if directory exists
+			 if [[ ! -d ${sub_dir} ]]; then
+				 # check if the relative path from PROJECT_DIR exists
+				 if [[ -d ${PROJECT_DIR}/${sub_dir} ]]; then
+					 sub_dir=${PROJECT_DIR}/${sub_dir}
+				 else
+					 echo "${func_label} ERROR: Directory for subject folders does not exist: ${sub_dir} Exiting..." | tee -a ${log_file}
+			 		 exit 1
+				 fi
+			 fi
+		 else
+			 # no directory given so use bids dir
+			 sub_dir=$BIDS_DIR
+		 fi
+		 in_subs=()
+		 for d in $(ls -d ${sub_dir}/${SUBID_PREFIX}???); do
+			 in_subs+=( $(basename $d) )
+		 done
+		 #out_subs=( $(basename $(ls -d ${sub_dir}/${SUBID_PREFIX}???)) )
+	fi
+	# subjects were listed
+	for s_func in "${in_subs[@]}"; do
+
+		if [[ $s_func =~ $re_non_sub_form ]] && [[ $c_flag -eq 1 ]]; then
+			# wrong format entered and conversion turned on
+			if [[ $s_func =~ $re_num ]]; then
+				# subid format required:
+				s_func="sub-$s_func"
+			else
+				# numid format required:
+				s_func="${s_func:4}"
+			fi
+		fi
+		if [[ $s_func =~ $re_sub_form ]]; then
+			# exclude if excluded sub
+      es_bool=0
+			for es in ${exclude_subs_format[@]}; do
+			  if [[ $s_func =~ $es ]] ; then    # use $item as regexp
+			    echo "${func_label} Excluding subject: $s_func"
+					#s_func=""
+          es_bool=1
+					break
+				fi
+			done
+      if [[ es_bool -eq 0 ]]; then
+			     out_subs+=("$s_func")
+      fi
+		else
+	   		echo "${func_label} ERROR: Subject '$s_func' of wrong format. Skipping..." | tee -a ${log_file}
+	   		#exit 1
+		fi
+	done
+
+
+	# check if there are any subjects left
+	if [[ ${nosub_flag} -ne 1 ]] && [[ ${#in_subs} -eq 0 ]]; then
+		echo "${func_label} ERROR: No subjects entered. Exiting..." | tee -a ${log_file}
+		exit 1
+	fi
+	SUBS=("${out_subs[@]}")
+}
+
+function get_task_order {
+	# get subjects
+	convert_sub_args -f numid -c "$1"
+	sub=$SUBS
+	if [ $((sub%2)) -eq 0 ]; then
+	  first_task=${TASKS[0]}
+	  second_task=${TASKS[1]}
+	else
+	  first_task=${TASKS[1]}
+	  second_task=${TASKS[0]}
+	fi
+
+}
+
+function mk_avg_nii {
+	# Args: 1=first image
+	# 		2+=other subjects to add with same file name
+	owd_func=$(pwd)
+	setup_modules $fsl_v
+	n_args_subs="$#"
+	dir_func=$(dirname $1)
+	fname1=$(basename $1)
+	cd $dir_func
+	convert_sub_args -f numid -c "${@:2}"
+	subs=( "${SUBS[@]}" )
+	# replaces last instance of sub-### with sub-avg
+	AVG_NII=$(echo $fname1 | sed -e 's_func/\('${SUBID_PREFIX}'\).\{3\}/\1avg/g')
+	echo "Adding file $fname1"
+	cp $fname1 $AVG_NII
+	for s_func in "${subs[@]}"; do
+		tmp="${fname1}"
+		# replaces all instances of sub-### with new sub-###
+		tmp=$(echo $tmp | sed -e 's_func/\('${SUBID_PREFIX}'\).\{3\}/\1'${s_func}'/g')
+		echo "Adding file $tmp"
+		fslmaths ${AVG_NII} -add $tmp ${AVG_NII}
+	done
+	fslmaths ${AVG_NII} -div ${n_args_subs} ${AVG_NII}
+	echo "File ${dir_func}/${AVG_NII} saved."
+	cd $owd_func
+}
+
+### packages to install:
+# setup_modules python/3.6.1 fmriprep
+# pip3 install --user nipype nistats pandas pybids
