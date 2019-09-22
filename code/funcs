@@ -1,10 +1,10 @@
 #!/bin/bash
 # funcs
 
-fsl_v=fsl/5.0.10
-python_v=python/3.6.1 #2.7.13_shared
-fmriprep_v=fmriprep/1.3.2
 source ${HOME}/.bash_profile
+fsl_v=fsl/5.0.10
+python_v=python/3.7.2 #3.6.1 #2.7.13_shared
+fmriprep_v=fmriprep/1.3.2
 
 EXCLUDE_SUBS=( "204" )
 
@@ -14,6 +14,7 @@ export PROJECT_DIR=$data_dir #'/u/project/CCN/cparkins/data/encoding'
 export BIDS_DIR="${PROJECT_DIR}/bids"
 export CODE_DIR="${PROJECT_DIR}/code"
 export QA_DIR="${BIDS_DIR}/qa"
+export RECON_DIR="${BIDS_DIR}/freesurfer"
 export FMRIPREP_DIR="${BIDS_DIR}/fmriprep"
 export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
 #export NISTATS_DIR="${FIRST_LEVEL_DIR}/nistats_glm"

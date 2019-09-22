@@ -21,7 +21,7 @@ source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
 echo "Setting project directories"
 export STUDY_DIR=${BIDS_DIR}
 echo "STUDY_DIR is ${STUDY_DIR}"
-export SUBJECTS_DIR=${STUDY_DIR}/freesurfer
+export SUBJECTS_DIR=${RECON_DIR}
 echo "SUBJECTS_DIR is ${SUBJECTS_DIR}"
 
 # get subjects
