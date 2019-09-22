@@ -14,8 +14,7 @@ set -e
 owd=$(pwd)
 echo $owd
 
-STAT="t"
-procedures=( "parc" ) #parc (parcellation) or sl (searchlight)
+PROCEDURES=( "parc" ) #parc (parcellation) or sl (searchlight)
 
 # load modules and functions
 source funcs
@@ -45,6 +44,9 @@ echo "Writing to logfile: ${log_file}"
 log_begin $log_args
 # log subjects
 write_log $log_args "Analyzing subjects ${subs[@]}."
+
+write_log $log_args "Copying atts.txt file"
+cp "${CODE_DIR}/atts.txt" "${out_dir}/"
 
 # concatenate t-images from feat folders for each subject, for each block
 for sub in "${subs[@]}"; do
@@ -82,7 +84,7 @@ for sub in "${subs[@]}"; do
     done
 done
 
-for procedure in "${procedures[@]}"; do
+for procedure in "${PROCEDURES[@]}"; do
   write_log $log_args "Running procedure: ${procedure}"
   if [[ $procedure == "parc" ]]; then
     all_parcels=( ${N_PARCELS} )

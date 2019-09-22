@@ -149,7 +149,7 @@ for subj in all_subj:
         else:
             ds = fmri_dataset(samples = data_fname, mask = mask)
 
-        #join attributes to dataset
+        # join attributes to dataset
         ds.sa['chunks'] = attr.chunks
         ds.sa['targets'] = attr.targets
         ds_dict[subj][task] = ds
@@ -202,7 +202,7 @@ for subj in all_subj:
                     parc_mask.samples=parc_mask.samples==parc_roi
                     # use mask to subselect data_fname from this ROI
                     ds_roi = fmri_dataset(samples = data_fname, mask=map2nifti(parc_mask))
-                    #join attributes to dataset
+                    # join attributes to dataset
                     ds_roi.sa['chunks'] = attr.chunks
                     ds_roi.sa['targets'] = attr.targets
                     # run regression
