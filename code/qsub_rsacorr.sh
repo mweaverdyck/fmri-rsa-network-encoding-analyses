@@ -93,7 +93,7 @@ for procedure in "${PROCEDURES[@]}"; do
   elif [[ $procedure == "sl" ]]; then
     all_parcels=( "sl" )
     bash dilate_sub_mask.sh ${subs[@]}
-    outstat="beta"
+    outstat="b"
   else
   #if [[ $procedure != "parc" ]] && [[ $procedure != "sl" ]]; then
     echo "ERROR: unrecognized procedure name. Must be 'parc' or 'sl', not: $procedure"

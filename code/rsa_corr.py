@@ -44,7 +44,7 @@ data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-%s_node-4D.nii'#%(subj,t
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_task-%s_stat-%s_corr-spear_parc-%s_val-%s_pred-%s.nii.gz' #% (subj, task, stat, n_parcels, "r" or "beta", predictor_name)
+out_fname = out_dir + '%s_task-%s_stat-%s_corr-spear_parc-%s_val-%s_pred-%s.nii.gz' #% (subj, task, stat, n_parcels, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_stat-%s_corr-spear_parc-%s_roi_stats.csv"
 atts = RSA_DIR + 'atts.txt' # attributes file
 
@@ -179,7 +179,7 @@ for subj in all_subj:
 
                 # save images
                 # output filename
-                fname = out_fname % (subj, subj, task, stat, 'sl', 'beta', measurename)
+                fname = out_fname % (subj, subj, task, stat, 'sl', 'b', measurename)
                 nimg_res.to_filename(fname)
                 print str(datetime.now()) + ": File %s saved." % fname
 

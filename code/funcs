@@ -39,7 +39,7 @@ export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefe
 SPACES=( "T1w" "MNI152NLin2009cAsym" )
 export SPACE=${SPACES[0]}
 export STAT="t"
-export PROCEDURES=( "parc" ) #parc (parcellation) or sl (searchlight)
+export PROCEDURES=( "parc" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
 
 NUMID_FORM='^[0-9][0-9][0-9]'
 SUBID_FORM="^${SUBID_PREFIX}[0-9][0-9][0-9]"
@@ -77,12 +77,8 @@ alias get_outline='echo "To run full analysis:
 # argument 1: label
 # argument 2: logfile
 timestamp() {
-	datetime="`date "+%Y-%m-%d %H:%M:%S_func"`"
+	datetime="`date "+%Y-%m-%d %H:%M:%S"`"
 }
-# log_datelabel() {
-# 	# combine date and time with label
-# 	datelabel="${datetime} $1:"
-# }
 write_log() {
 	# 3 arguments needed: label, log file, and text to write to log
 	label_arg="$1"
@@ -91,7 +87,6 @@ write_log() {
 	# get current date and time
 	timestamp
 	# get date and add label
-	#log_datelabel "$label_arg"
 	echo "${datetime} ${label_arg}: ${text_arg}" | tee -a "$logfile_arg"
 }
 log_begin() {
@@ -115,10 +110,6 @@ is_sub() {
 	fi
 }
 
-# local_or_hoffman() {
-# 	# are you on your local computer (1) or hoffman (0)
-# 	if [ ${HOME:0:3} == '/u/' ]; then isLocal=0; else isLocal=1; fi
-# }
 test_local() {
 	if [[ $isLocal -eq 0 ]]; then
 	  echo "ERROR: $1 Must be run on local computer via mount."
@@ -135,8 +126,8 @@ test_hoffman() {
 
 setup_modules() {
 	# call with names of all modules you want to load
-	# if it's_func local, will do nothing
-	# if it's_func not local (i.e., hoffman), will load all arguments as modules
+	# if it's local, will do nothing
+	# if it's not local (i.e., hoffman), will load all arguments as modules
 	#local_or_hoffman
 	# if on hoffman, then load
 	if [ ${isLocal} -eq 0 ]; then
