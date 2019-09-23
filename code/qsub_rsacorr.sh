@@ -11,58 +11,61 @@
 # runs runs searchlight RSA regression based on Nistats GLM output
 # break if error raised
 set -e
-owd=$(pwd)
-echo $owd
-
-PROCEDURES=( "parc" ) #parc (parcellation) or sl (searchlight)
 
 # load modules and functions
 source funcs
-setup_modules $fsl_v $python_v
+setup_modules $fsl_v python/2.7.13_shared #python 2 required for mvpa2
 
+label='RSA_CORR'
 in_dir=$GLM_DIR
 out_dir=${RSA_DIR}
-log_dir=${out_dir}/logs
-mkdir -p ${out_dir}
-mkdir -p ${log_dir}
 
-# get subjects
-subs=( "$@" )
-convert_sub_args -f subid -c "${subs[@]}" ${in_dir}
+begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
+log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
-echo "Running subjects: ${subs[@]}"
+
+#log_dir=${out_dir}/logs
+#mkdir -p ${out_dir}
+#mkdir -p ${log_dir}
+
+# # get subjects
+# subs=( "$@" )
+# convert_sub_args -f subid -c "${subs[@]}" ${in_dir}
+# subs=( "${SUBS[@]}" )
+# echo "Running subjects: ${subs[@]}"
 
 
 # log variables
-label='RSA_CORR'
-sub_str=''; for sub in "${subs[@]}"; do sub_str=$(echo "${sub_str}_${sub}"); done
-log_file="${log_dir}/LOG${sub_str}.log"
-log_args="$label $log_file"
-echo "Writing to logfile: ${log_file}"
+#setup_dirs $in_dir $out_dir ${subs[@]}
+#sub_str=''; for sub in "${subs[@]}"; do sub_str=$(echo "${sub_str}_${sub}"); done
+#log_file="${log_dir}/LOG${sub_str}.log"
+#echo "Writing to logfile: ${log_file}"
 
-# log start
-log_begin $log_args
-# log subjects
-write_log $log_args "Analyzing subjects ${subs[@]}."
+# # log start
+# log_begin $log_args
+# # log subjects
+# write_log $log_args "Analyzing subjects ${subs[@]}."
 
 write_log $log_args "Copying atts.txt file"
 cp "${CODE_DIR}/atts.txt" "${out_dir}/"
 
 # concatenate t-images from feat folders for each subject, for each block
 for sub in "${subs[@]}"; do
+    write_log $log_args "Analyzing subject: $sub"
     # subject's contrasts directory
     subdir="${in_dir}/${sub}"
-    mkdir -p "${out_dir}/$sub"
+    out_subdir="${out_dir}/${sub}"
+    mkdir -p "${out_subdir}"
 
     write_log $log_args "Subject input directory: $subdir"
-    write_log $log_args "Subject output directory: ${out_dir}/$sub"
+    write_log $log_args "Subject output directory: ${out_subdir}"
 
     # create one concatenated image per task
     for task in "${TASKS[@]}"; do
         # file prefix (must match nii in subject's directory)
         pref="${sub}_task-${task}_space-${SPACE}_stat-${STAT}_node-"
         # output file name
-        img_4d="${out_dir}/${sub}/${pref}4D"
+        img_4d="${out_subdir}/${pref}4D"
         # input file names
         img_pref="${subdir}/${pref}"
         # get list of node images

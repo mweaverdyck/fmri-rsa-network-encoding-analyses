@@ -17,8 +17,6 @@ export QA_DIR="${BIDS_DIR}/qa"
 export RECON_DIR="${BIDS_DIR}/freesurfer"
 export FMRIPREP_DIR="${BIDS_DIR}/fmriprep"
 export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
-#export NISTATS_DIR="${FIRST_LEVEL_DIR}/nistats_glm"
-#export PYMVPA_DIR="${FIRST_LEVEL_DIR}/pymvpa_searchlight"
 export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
 export GLM_DIR="${FIRST_LEVEL_DIR}/glm"
 export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
@@ -34,12 +32,10 @@ export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
 export N_PARCELS=800
 export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels17Networks_dseg.nii.gz" #2mm_parc.nii.gz"
 #export MNI_MASK_DIL="${MNI_DIR}/2mm_brainmask_dil-5.nii.gz"
-#export SUB_MASK="sub-???_desc-brain_mask.nii.gz"
-# possible spaces
-SPACES=( "T1w" "MNI152NLin2009cAsym" )
+SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
-export PROCEDURES=( "parc" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
+export PROCEDURES=( "sl" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
 
 NUMID_FORM='^[0-9][0-9][0-9]'
 SUBID_FORM="^${SUBID_PREFIX}[0-9][0-9][0-9]"
@@ -355,6 +351,114 @@ function mk_avg_nii {
 	cd $owd_func
 }
 
+function setup_logfile {
+  # create log file name with all subjects
+  sub_str=''; for s in "${SUBS[@]}"; do sub_str=$(echo "${sub_str}_${s}"); done
+  LOG_FILE="${LOG_OUTPUT}/LOG${sub_str}.log"
+  echo "Writing to logfile: ${LOG_FILE}"
+}
+
+function begin_script {
+  while test $# -gt 0; do
+    case "$1" in
+      -h|--help)
+        echo "$package - attempt to capture frames"
+        echo " "
+        echo "$package [options] application [arguments]"
+        echo " "
+        echo "options:"
+        echo "-h, --help                show brief help"
+        echo "-l, --label=LABEL         specify a label to use"
+        echo "-i, --input-dir=DIR       specify a directory to find subjects in"
+        echo "-o, --output-dir=DIR      specify a directory to store output in"
+        echo "-f, --sub-format=subid    specify what format subject ids should be converted to"
+        exit 0
+        ;;
+      -l)
+        shift
+        if test $# -gt 0; then
+          export LABEL=$1
+        else
+          echo "no label specified"
+          exit 1
+        fi
+        shift
+        ;;
+      --label*)
+        export LABEL=`echo $1 | sed -e 's/^[^=]*=//g'`
+        shift
+        ;;
+      -i)
+        shift
+        if test $# -gt 0; then
+          export INPUT=$1
+        else
+          echo "WARNING: no input dir specified"
+        fi
+        shift
+        ;;
+      --input-dir*)
+        export INPUT=`echo $1 | sed -e 's/^[^=]*=//g'`
+        shift
+        ;;
+      -o)
+        shift
+        if test $# -gt 0; then
+          export OUTPUT=$1
+        else
+          echo "no output dir specified"
+          exit 1
+        fi
+        shift
+        ;;
+      --output-dir*)
+        export OUTPUT=`echo $1 | sed -e 's/^[^=]*=//g'`
+        shift
+        ;;
+      -f)
+        shift
+        if test $# -gt 0; then
+          export SUBFORMAT=$1
+        else
+          echo "no subject format specified"
+          exit 1
+        fi
+        shift
+        ;;
+      --sub-format*)
+        export SUBFORMAT=`echo $1 | sed -e 's/^[^=]*=//g'`
+        shift
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+  if [[ $1 == 'all' ]]; then
+    a="$@ ${INPUT}"
+  else
+    a="$@"
+  fi
+  # get subjects
+  convert_sub_args -f ${SUBFORMAT} -c $a
+  echo "Running subjects: ${SUBS[@]}"
+
+  # log directory
+  LOG_OUTPUT=${OUTPUT}/logs
+  # make output directories and parent folders
+  mkdir -p ${OUTPUT}
+  mkdir -p ${LOG_OUTPUT}
+  # create log file
+  setup_logfile
+  # create log args
+  LOG_ARGS="${LABEL} ${LOG_FILE}"
+  # log start
+  log_begin $LOG_ARGS
+  ## log subjects
+  #write_log $LOG_ARGS "Analyzing subjects ${SUBS[@]}."
+}
+
 ### packages to install:
 # setup_modules python/3.6.1 fmriprep
 # pip3 install --user nipype nistats pandas pybids
+# pip install --user pymvpa2

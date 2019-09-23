@@ -15,6 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 import copy
+import glob
 import pandas as pd
 import nibabel as nib
 
@@ -122,7 +123,10 @@ for subj in all_subj:
         roi_list.remove(0.)
         n_parcels = len(roi_list)
     else:
-        mask = sub_mask % subj
+        masks = glob.glob(sub_mask % subj)
+        if len(masks) != 1:
+            print "WARNING: " + str(len(masks)) + " found. Attempting to use first mask."
+        mask = masks[0]
         print str(datetime.now()) + ": Using mask " + mask
         mask_ds = fmri_dataset(samples = mask, mask = mask)
 
