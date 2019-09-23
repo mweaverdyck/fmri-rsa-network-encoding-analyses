@@ -40,7 +40,7 @@ for arg in "$@"; do
     subs=( $subs $arg )
     echo $arg "subject added to list: ${subs[@]}"
   else
-    if [[ $arg == "all" ]]; then
+    if [[ $arg == "all" ]] || [[ $arg == "new" ]]; then
       # run all subjects
       subs=( $arg $2)
     elif [[ $arg == "full" ]]; then
