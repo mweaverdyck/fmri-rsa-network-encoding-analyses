@@ -48,7 +48,7 @@ for arg in "$@"; do
       scripts=( reconall fmriprep_norecon glm rsacorr )
     else
       # not a subject
-      if [[ $arg != qsub* ]]; then arg=qsub_"$arg".sh; fi
+      if [[ $arg != qsub* ]] && [[ $arg != /*.sh ]]; then arg=qsub_"$arg".sh; fi
       if [[ ! -f $arg ]]; then
         echo "ERROR: $arg is not a subject or a script. Skipping"
       else
@@ -63,8 +63,12 @@ if [[ ${#scripts} -eq 0 ]]; then
   echo "Must include a script name!"
 fi
 
+# get first step
+get_step_from_script ${scripts[0]}
+echo $STEP
+
 # get subjects
-convert_sub_args -f numid -c "${subs[@]}"
+convert_sub_args -f numid -c "${subs[@]}" $STEP
 subs=( "${SUBS[@]}" )
 
 # go through each subject and launch each script dependent on the previous

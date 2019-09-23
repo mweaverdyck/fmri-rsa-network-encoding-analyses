@@ -90,6 +90,42 @@ get_index() {
     fi
   done
 }
+get_step_from_dir() {
+  d=$1
+  get_index $d ${DIRS[@]}
+  STEP=${STEPS[$INDEX]}
+}
+get_dir_from_step() {
+  s=$1
+  get_index $s ${STEPS[@]}
+  DIR=${DIRS[$INDEX]}
+}
+get_step_from_script() {
+  s=$1
+  get_index $s ${SCRIPTS[@]}
+  if [[ -z $INDEX ]]; then
+    get_index "${CODE_DIR}/$s" ${SCRIPTS[@]}
+  fi
+  STEP=${STEPS[$INDEX]}
+}
+get_script_from_step() {
+  s=$1
+  get_index $s ${STEPS[@]}
+  SCRIPT=${SCRIPTS[$INDEX]}
+}
+get_dir_from_script() {
+  s=$1
+  get_index $s ${SCRIPTS[@]}
+  if [[ -z $INDEX ]]; then
+    get_index "${CODE_DIR}/$s" ${SCRIPTS[@]}
+  fi
+  DIR=${DIRS[$INDEX]}
+}
+get_script_from_dir() {
+  s=$1
+  get_index $s ${DIRS[@]}
+  SCRIPT=${SCRIPTS[$INDEX]}
+}
 
 
 # Standard log output for beginning and end of script
