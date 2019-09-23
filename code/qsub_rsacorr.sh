@@ -4,7 +4,7 @@
 #$ -o joblogs/joblog.rsacorr.$JOB_ID.log
 #$ -j y
 #$ -pe shared 4
-#$ -l h_rt=1:59:00,h_data=8G
+#$ -l h_rt=3:59:00,h_data=8G
 # Notify when
 #$ -m ae
 #

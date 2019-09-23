@@ -100,9 +100,9 @@ log_end() {
 
 is_sub() {
 	if [[ $1 =~ $NUMID_FORM ]] || [[ $1 =~ $SUBID_FORM ]]; then
-    return 1
+    isSub=1
   else
-    return 0
+    isSub=0
 	fi
 }
 
