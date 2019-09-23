@@ -10,51 +10,48 @@
 
 # break if error raised
 set -e
-
 # load modules and functions
-echo "sourcing funcs"
 source funcs
-echo "loading python and freesurfer"
 setup_modules python/2.7.13 freesurfer/6.0.0
-export FREESURFER_HOME="/u/project/CCN/apps/freesurfer/6.0.0"
-source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
-echo "Setting project directories"
-export STUDY_DIR=${BIDS_DIR}
-echo "STUDY_DIR is ${STUDY_DIR}"
-export SUBJECTS_DIR=${RECON_DIR}
-echo "SUBJECTS_DIR is ${SUBJECTS_DIR}"
 
-# get subjects
-convert_sub_args -f subid -c "$@"
+label='RECON'
+in_dir=${BIDS_DIR}
+out_dir=${RECON_DIR}
+
+begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
+log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
 
-echo "Running recon-all on subjects: ${subs[@]}"
+export FREESURFER_HOME="/u/project/CCN/apps/freesurfer/6.0.0"
+source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
+
+write_log ${log_args} "Running recon-all on subjects: ${subs[@]}"
 
 for sub in "${subs[@]}"; do
-
+  write_log ${log_args} "Analyzing subject: $sub"
 	#### Create directories and prepare T1 file ####
-	if [[ -d ${SUBJECTS_DIR}/${sub} ]]; then
-		echo "WARNING: Subject's directory already exists in ${SUBJECTS_DIR}. Deleting..."
-		rm -rf ${SUBJECTS_DIR}/${sub}
+	if [[ -d ${out_dir}/${sub} ]]; then
+		write_log ${log_args} "WARNING: Subject's directory already exists in ${out_dir}. Deleting..."
+		rm -rf ${out_dir}/${sub}
 	fi
 
-	mkdir -p ${SUBJECTS_DIR}/${sub}
-	echo "Created directory ${SUBJECTS_DIR}/${sub}"
+	mkdir -p ${out_dir}/${sub}
+	write_log ${log_args} "Created directory ${out_dir}/${sub}"
 
-	echo "Copying anatomical to ${SUBJECTS_DIR}/${sub}"
-	cp ${STUDY_DIR}/${sub}/anat/*T1w.nii.gz ${SUBJECTS_DIR}/${sub}/
+	write_log ${log_args} "Copying anatomical to ${out_dir}/${sub}"
+	cp ${in_dir}/${sub}/anat/*T1w.nii.gz ${out_dir}/${sub}/
 
-	echo "Unzipping anatomical in ${SUBJECTS_DIR}/{$sub}"
-	gunzip ${SUBJECTS_DIR}/${sub}/*T1w.nii.gz
+	write_log ${log_args} "Unzipping anatomical in ${out_dir}/{$sub}"
+	gunzip ${out_dir}/${sub}/*T1w.nii.gz
 
-	mkdir -p ${SUBJECTS_DIR}/${sub}/mri/orig
-	echo "Created directory ${SUBJECTS_DIR}/${sub}/mri/orig"
+	mkdir -p ${out_dir}/${sub}/mri/orig
+	write_log ${log_args} "Created directory ${out_dir}/${sub}/mri/orig"
 
-	echo "Converting anatomical ${SUBJECTS_DIR}/${sub}/mri/orig/001.mgz"
-	mri_convert ${SUBJECTS_DIR}/${sub}/*T1w.nii ${SUBJECTS_DIR}/${sub}/mri/orig/001.mgz
+	write_log ${log_args} "Converting anatomical ${out_dir}/${sub}/mri/orig/001.mgz"
+	mri_convert ${out_dir}/${sub}/*T1w.nii ${out_dir}/${sub}/mri/orig/001.mgz
 
 	#### Run recon-all ####
-	echo "Running recon-all on subject: ${sub}"
+	write_log ${log_args} "Running recon-all on subject: ${sub}"
 	recon-all -subjid ${sub} -all -parallel -openmp 4 -nuintensitycor
 
 done

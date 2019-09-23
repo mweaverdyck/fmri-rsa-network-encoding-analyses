@@ -14,23 +14,13 @@
 source funcs
 setup_modules $fsl_v R
 
+label='NONSTEADYSTATES'
 in_dir=${FMRIPREP_DIR}
 out_dir="${DERIVATIVES_DIR}"
-log_dir="${out_dir}/logs"
-mkdir -p ${out_dir}
-mkdir -p ${log_dir}
 
-# get subjects
-convert_sub_args -f subid -c "$@" ${in_dir}
+begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
+log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
-
-# log variables
-label='NONSTEADYSTATES'
-sub_str=''; for s in "${subs[@]}"; do sub_str=$(echo "${sub_str}_${s}"); done
-log_file="${log_dir}/LOG${sub_str}.log"
-log_args="$label $log_file"
-
-write_log $log_args "${subs[@]}"
 
 suffix="_desc-preproc_bold"
 # remove TRs from beginning of each preprocessed run

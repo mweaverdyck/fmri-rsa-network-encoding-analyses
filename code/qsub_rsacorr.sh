@@ -24,28 +24,6 @@ begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
 log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
 
-#log_dir=${out_dir}/logs
-#mkdir -p ${out_dir}
-#mkdir -p ${log_dir}
-
-# # get subjects
-# subs=( "$@" )
-# convert_sub_args -f subid -c "${subs[@]}" ${in_dir}
-# subs=( "${SUBS[@]}" )
-# echo "Running subjects: ${subs[@]}"
-
-
-# log variables
-#setup_dirs $in_dir $out_dir ${subs[@]}
-#sub_str=''; for sub in "${subs[@]}"; do sub_str=$(echo "${sub_str}_${sub}"); done
-#log_file="${log_dir}/LOG${sub_str}.log"
-#echo "Writing to logfile: ${log_file}"
-
-# # log start
-# log_begin $log_args
-# # log subjects
-# write_log $log_args "Analyzing subjects ${subs[@]}."
-
 write_log $log_args "Copying atts.txt file"
 cp "${CODE_DIR}/atts.txt" "${out_dir}/"
 

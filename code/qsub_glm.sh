@@ -16,28 +16,13 @@
 source funcs
 setup_modules $python_v
 
+label='GLM'
 in_dir=${DERIVATIVES_DIR}
 out_dir=${GLM_DIR}
-log_dir="${out_dir}/logs"
-mkdir -p ${out_dir}
-mkdir -p ${log_dir}
 
-# get subjects
-convert_sub_args -f subid -c "$@" ${in_dir}
+begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f numid $@
+log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
-echo "${subs[@]}"
-
-# log variables
-label='GLM'
-sub_str=''; for s in "${subs[@]}"; do sub_str=$(echo "${sub_str}_${s}"); done
-log_file="${log_dir}/LOG${sub_str}.log"
-log_args="$label $log_file"
-
-# log start
-log_begin $log_args
-# log subjects
-write_log $log_args "Analyzing subjects ${subs[@]}."
-
 
 for s in "${subs[@]}"; do
     deriv_dir="${in_dir}/derivatives_$s"
