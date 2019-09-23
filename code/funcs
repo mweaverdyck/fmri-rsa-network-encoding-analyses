@@ -35,7 +35,7 @@ export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefe
 SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
-export PROCEDURES=( "sl" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
+export PROCEDURES=( "parc" "sl" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
 
 NUMID_FORM='^[0-9][0-9][0-9]'
 SUBID_FORM="^${SUBID_PREFIX}[0-9][0-9][0-9]"

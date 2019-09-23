@@ -70,11 +70,9 @@ for procedure in "${PROCEDURES[@]}"; do
   if [[ $procedure == "parc" ]]; then
     all_parcels=( ${N_PARCELS} )
     bash transform_mni-2-T1w.sh ${subs[@]}
-    outstat="r"
   elif [[ $procedure == "sl" ]]; then
     all_parcels=( "sl" )
     bash dilate_sub_mask.sh ${subs[@]}
-    outstat="b"
   else
   #if [[ $procedure != "parc" ]] && [[ $procedure != "sl" ]]; then
     echo "ERROR: unrecognized procedure name. Must be 'parc' or 'sl', not: $procedure"
@@ -90,8 +88,7 @@ for procedure in "${PROCEDURES[@]}"; do
   write_log $log_args "Calculate difference images"
 
   for p in "${all_parcels[@]}"; do
-    #img_match="_stat-${STAT}_reg-beta_npred-02_corr-ortho_parc-${p}_pred-"
-    img_match="_stat-${STAT}_corr-spear_parc-${p}_val-${outstat}_pred-"
+    img_match="_stat-${STAT}_corr-spear_parc-${p}_val-r_pred-"
     for sub in "${subs[@]}"; do
         pref="${RSA_DIR}/${sub}/${procedure}/${sub}"
         # distance: friend - number

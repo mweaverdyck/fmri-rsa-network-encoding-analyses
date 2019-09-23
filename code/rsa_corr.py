@@ -45,7 +45,7 @@ data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-%s_node-4D.nii'#%(subj,t
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_task-%s_stat-%s_corr-spear_parc-%s_val-%s_pred-%s.nii.gz' #% (subj, task, stat, n_parcels, "r" or "b", predictor_name)
+out_fname = out_dir + '%s_task-%s_stat-%s_corr-spear_parc-%s_val-r_pred-%s.nii.gz' #% (subj, task, stat, n_parcels, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_stat-%s_corr-spear_parc-%s_roi_stats.csv"
 atts = RSA_DIR + 'atts.txt' # attributes file
 
@@ -159,72 +159,70 @@ for subj in all_subj:
         ds_dict[subj][task] = ds
         dset_copy = deepcopy(ds_dict[subj][task])
 
+        if procedure == 'parc':
+            # copy for each regression output
+            blank_img = copy.deepcopy(parc_ds[0]) #copy.deepcopy(ds[0])
+            img_dims = blank_img.samples.shape
+            blank_img.samples = np.zeros(img_dims)
+            results_dict={}
+
         measure_dict={} # Create dictionary of measures to use for within subjet searchlights
         # Add measures computing similarity with target DSMs
         for target_name, target_mat in subj_dsms[subj].iteritems():
-            measure_dict[target_name]= PDistTargetSimilarity(target_mat,
+            measure_dict[target_name] = PDistTargetSimilarity(target_mat,
                                                 comparison_metric='spearman',
                                                 corrcoef_only=True)
+            if procedure == 'parc':
+                results_dict[target_name] = copy.deepcopy(blank_img)
 
 
-        for measurename, measure in measure_dict.iteritems():
-            if procedure == 'sl':
+        if procedure == 'sl':
+            for measurename, measure in measure_dict.iteritems():
                 print str(datetime.now()) + ": Creating searchlight of size " + str(rad)
                 sl = sphere_searchlight(measure, rad) #, postproc=FisherTransform)
                 print str(datetime.now()) + ": Running searchlight."
                 sl_map = sl(dset_copy)
 
                 print str(datetime.now()) + ": Saving output images"
-
                 # output image
-                #nimg_res = map2nifti(data = sl_map, dataset = dset_copy)
-                #nimg_res = map2nifti(data = sl_map, dataset = mask_ds)
                 nimg_res = map2nifti(sl_map, imghdr = dset_copy.a.imghdr)
-
                 # save images
-                # output filename
-                fname = out_fname % (subj, subj, task, stat, 'sl', 'b', measurename)
+                fname = out_fname % (subj, subj, task, stat, 'sl', measurename)
                 nimg_res.to_filename(fname)
                 print str(datetime.now()) + ": File %s saved." % fname
 
-            elif procedure == 'parc':
+        elif procedure == 'parc':
 
-                # copy for each regression output
-                blank_img = copy.deepcopy(parc_ds[0]) #copy.deepcopy(ds[0])
-                img_dims = blank_img.samples.shape
-                blank_img.samples = np.zeros(img_dims)
-                #parc_res = copy.deepcopy(blank_img)
-                results = copy.deepcopy(blank_img)
+            print(str(datetime.now()) + ": Starting parcellation "+ str(n_parcels))
 
-                print(str(datetime.now()) + ": Starting parcellation "+ str(n_parcels))
+            # iterate through each ROI of parcellation and run regression
+            for r, parc_roi in enumerate(roi_list):
+                print(str(datetime.now()) + ": Running regression on ROI %d of %d..." % (r+1, n_parcels))
+                # create mask for this ROI
+                parc_mask = copy.deepcopy(parc_ds)
+                parc_mask.samples=parc_mask.samples==parc_roi
+                # use mask to subselect data_fname from this ROI
+                ds_roi = fmri_dataset(samples = data_fname, mask=map2nifti(parc_mask))
+                # join attributes to dataset
+                ds_roi.sa['chunks'] = attr.chunks
+                ds_roi.sa['targets'] = attr.targets
 
-                # iterate through each ROI of parcellation and run regression
-                for r, parc_roi in enumerate(roi_list):
-                    print(str(datetime.now()) + ": Running regression on ROI %d of %d..." % (r+1, n_parcels))
-                    # create mask for this ROI
-                    parc_mask = copy.deepcopy(parc_ds)
-                    parc_mask.samples=parc_mask.samples==parc_roi
-                    # use mask to subselect data_fname from this ROI
-                    ds_roi = fmri_dataset(samples = data_fname, mask=map2nifti(parc_mask))
-                    # join attributes to dataset
-                    ds_roi.sa['chunks'] = attr.chunks
-                    ds_roi.sa['targets'] = attr.targets
+                for measurename, measure in measure_dict.iteritems():
                     # run regression
                     res = measure(ds_roi)
                     r_val = res.samples[0][0]
-                    results.samples[parc_mask.samples] = [r_val]
+                    results_dict[measurename].samples[parc_mask.samples] = [r_val]
                     out_csv_df.append([subj, task, parc_roi, measurename, r_val])
 
-
-                nimg_res = map2nifti(results, imghdr = ds.a.imghdr)
+            for measurename, measure in measure_dict.iteritems():
+                nimg_res = map2nifti(results_dict[measurename], imghdr = ds.a.imghdr)
                 # output filename
-                fname = out_fname % (subj, subj, task, stat, n_parcels, "r", measurename)
+                fname = out_fname % (subj, subj, task, stat, n_parcels, measurename)
                 # save file
                 nimg_res.to_filename(fname)
                 print str(datetime.now()) + ": File %s saved." % fname
 
-    if procedure == 'parc':
-        out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
-        out_csv_df.to_csv(csv_fname % (subj, subj, stat, n_parcels))
+            out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
+            out_csv_df.to_csv(csv_fname % (subj, subj, stat, n_parcels))
 
 print str(datetime.now()) + ": End rsa_corr.py"
