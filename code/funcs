@@ -86,11 +86,11 @@ get_index() {
   for i in "${!arr_func[@]}"; do
     if [[ "${arr_func[$i]}" = "${val_func}" ]]; then
       INDEX="${i}"
-      echo "${INDEX}";
       break
     fi
   done
 }
+
 
 # Standard log output for beginning and end of script
 # argument 1: label
@@ -180,7 +180,37 @@ function get_subs {
     s=$(basename $sd)
     DIR_SUBS+=("$s")
   done
-  echo ${DIR_SUBS[@]}
+}
+
+get_all_subs() {
+  step_func=$1
+  get_index ${step_func} ${STEPS[@]}
+  if [[ -z ${INDEX} ]]; then
+    in_dir_func=${BIDS_DIR}
+  else
+    pre_index="$(($INDEX - 1))"
+    in_dir_func=${DIRS[${pre_index}]}
+  fi
+  get_subs ${in_dir_func}
+}
+
+get_new_subs() {
+  step_func=$1
+  get_index ${step_func} ${STEPS[@]}
+  if [[ -z ${INDEX} ]]; then
+    get_subs ${BIDS_DIR}
+  else
+    get_all_subs ${step_func}
+    all_subs=( ${DIR_SUBS[@]} )
+    out_dir_func=${DIRS[$INDEX]}
+    get_subs ${out_dir_func}
+    completed_subs=( ${DIR_SUBS[@]} )
+
+    for es in ${completed_subs[@]}; do
+      all_subs=( "${all_subs[@]/$es}")
+    done
+    DIR_SUBS=( ${all_subs[@]} )
+  fi
 }
 
 function convert_sub_args {
@@ -264,33 +294,19 @@ function convert_sub_args {
   echo "Subjects to exclude: ${exclude_subs_format[@]}"
 
 	out_subs=()
-	if [[ ${in_subs} == 'all' ]] || [[ ${in_subs} == 'new' ]]; then
+	#if [[ ${in_subs} == 'all' ]] || [[ ${in_subs} == 'new' ]]; then
 		 # running all subjects
 		 # if next input is directory, find all subject directories in that folder,
 		 # otherwise, use bids directory
-		 if [[ ${#in_subs[@]} -gt 1 ]]; then
-			 # there exists a second input. Must be directory
-			 sub_dir=${in_subs[1]}
-			 # check if directory exists
-			 if [[ ! -d ${sub_dir} ]]; then
-				 # check if the relative path from PROJECT_DIR exists
-				 if [[ -d ${PROJECT_DIR}/${sub_dir} ]]; then
-					 sub_dir=${PROJECT_DIR}/${sub_dir}
-				 else
-					 echo "${func_label} ERROR: Directory for subject folders does not exist: ${sub_dir} Exiting..." | tee -a ${log_file}
-			 		 exit 1
-				 fi
-			 fi
-		 else
-			 # no directory given so use bids dir
-			 sub_dir=$BIDS_DIR
-		 fi
-		 in_subs=()
-		 for d in $(ls -d ${sub_dir}/${SUBID_PREFIX}???); do
-			 in_subs+=( $(basename $d) )
-		 done
-		 #out_subs=( $(basename $(ls -d ${sub_dir}/${SUBID_PREFIX}???)) )
-	fi
+  if [[ ${in_subs} == 'all' ]] || [[ ${in_subs} == 'new' ]]; then
+    step_func=${in_subs[1]}
+    if [[ ${in_subs} == 'all' ]]; then
+       get_all_subs ${step_func}
+    elif [[ ${in_subs} == 'new' ]]; then
+       get_new_subs ${step_func}
+  	fi
+    in_subs=( "${DIR_SUBS[@]}" )
+  fi
 	# subjects were listed
 	for s_func in "${in_subs[@]}"; do
 
