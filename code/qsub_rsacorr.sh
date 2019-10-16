@@ -65,6 +65,7 @@ for sub in "${subs[@]}"; do
     done
 done
 
+
 for procedure in "${PROCEDURES[@]}"; do
   write_log $log_args "Running procedure: ${procedure}"
   if [[ $procedure == "parc" ]]; then
@@ -74,14 +75,13 @@ for procedure in "${PROCEDURES[@]}"; do
     all_parcels=( "sl" )
     bash dilate_sub_mask.sh ${subs[@]}
   else
-  #if [[ $procedure != "parc" ]] && [[ $procedure != "sl" ]]; then
     echo "ERROR: unrecognized procedure name. Must be 'parc' or 'sl', not: $procedure"
     exit 0
   fi
 
   # Run RSA
   write_log $log_args "Running RSA correlation"
-  python rsa_corr.py ${procedure} $STAT ${subs[@]} | tee -a $log_file
+  python rsa_corr.py ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA correlation"
 
   # take difference between output images

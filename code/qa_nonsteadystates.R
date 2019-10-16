@@ -1,7 +1,7 @@
 #library(tidyverse)
 library(readr)
 
-exclude_subs=c('sub-204','sub-246')
+exclude_subs=c('sub-204')
 
 subs = commandArgs(trailingOnly=TRUE)
 if (length(subs)==0) {

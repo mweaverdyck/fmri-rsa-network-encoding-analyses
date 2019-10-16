@@ -11,6 +11,7 @@ from nistats.first_level_model import * #first_level_models_from_bids
 from nistats.reporting import plot_design_matrix
 import nibabel as nib
 import matplotlib.pyplot as plt
+from funcs import *
 
 
 # input arguments
@@ -26,30 +27,23 @@ except RuntimeError:
     quit()
 
 
-
-SUBJECT_DIR_PREFIX = 'sub-'
-bids_dir = os.environ['BIDS_DIR'] + '/'
-data_dir = bids_dir
-prep_dir = os.environ['DERIVATIVES_DIR'] + '/'
-derivatives_prefix = prep_dir + 'derivatives_'
-write_dir = os.environ['GLM_DIR'] + '/'
-if not os.path.exists(write_dir):
-    os.makedirs(write_dir)
-
-space_label = os.environ['SPACE']
-n_nodes = int(os.environ['N_NODES'])
+derivatives_prefix = DERIVATIVES_DIR + 'derivatives_'
+space_label = SPACE
 tasks = ['friend','number']
-nodes = range(n_nodes)
+nodes = range(N_NODES)
 
+out_dir = GLM_DIR
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
 
 # #single subject
-# bids_dir = os.environ['data_dir']+'/bids/'
-# prep_dir = bids_dir+'fmriprep/'
+# BIDS_DIR = os.environ['BIDS_DIR']+'/bids/'
+# DERIVATIVES_DIR = BIDS_DIR+'fmriprep/'
 # subj = 'sub-212'
 # t = 0
 # task_label = tasks[t]
 # space_label = "T1w"
-# n_nodes = 10
+# N_NODES = 10
 
 
 col_regressors_fixed = [
@@ -76,7 +70,7 @@ for subj in subject_ids:
         os.makedirs(derivatives_dir)
     if not os.path.exists(derivatives_dir+subj):
         # move derivatives to derivatives folder
-        shutil.move(prep_dir+subj, derivatives_dir)
+        shutil.move(DERIVATIVES_DIR+subj, derivatives_dir)
 
     # will run on all subjects in derivatives_dir, so all must be done with fmriprep
     for t, task_label in enumerate(tasks):
@@ -84,7 +78,7 @@ for subj in subject_ids:
         print("Calculating first level model...")
         models, models_run_imgs, models_events, models_confounds = \
             first_level_models_from_bids(
-                data_dir, task_label, space_label
+                BIDS_DIR, task_label, space_label
                 , derivatives_folder=derivatives_dir
             )
 
@@ -100,7 +94,7 @@ for subj in subject_ids:
             print("Analyzing subject "+ subid)
 
             # write subject's output directory
-            write_sub_dir = os.path.join(write_dir, subid)
+            write_sub_dir = os.path.join(out_dir, subid)
             if not os.path.exists(write_sub_dir):
                 os.makedirs(write_sub_dir)
 
@@ -201,6 +195,6 @@ for subj in subject_ids:
 
 
     # move subjects' folders back to fmriprep
-    print("Moving subject's data from " + derivatives_dir + " to " + prep_dir)
-    shutil.move(derivatives_dir+subj, prep_dir)
+    print("Moving subject's data from " + derivatives_dir + " to " + DERIVATIVES_DIR)
+    shutil.move(derivatives_dir+subj, DERIVATIVES_DIR)
     os.rmdir(derivatives_dir)

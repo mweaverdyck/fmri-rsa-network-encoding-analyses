@@ -18,6 +18,7 @@ import copy
 import glob
 import pandas as pd
 import nibabel as nib
+from funcs import *
 
 # Fisher transformation function
 FisherTransform=FxMapper('features',lambda r: 0.5*np.log((1+r)/(1-r)))
@@ -28,25 +29,20 @@ print str(datetime.now()) + ": Begin rsa_corr.py"
 # searchlight or parcellation?
 procedure = sys.argv[1]
 # which statistic to use
-stat = sys.argv[2]
+#stat = sys.argv[2]
 # subjects
-all_subj = sys.argv[3:]
+all_subj = sys.argv[2:]
 
 # get project directories
-PROJECT_DIR = os.environ['PROJECT_DIR'] + '/'
-BIDS_DIR = os.environ['BIDS_DIR'] + '/'
-SPACE = os.environ['SPACE']
-RSA_DIR = os.environ['RSA_DIR'] + '/'
 in_dir = RSA_DIR + '%s/'
 out_dir = RSA_DIR + '%s/' + procedure + '/' #%(subj)
 # filenames
-MNI_PARCELLATION = os.environ['MNI_PARCELLATION']
-data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-%s_node-4D.nii'#%(subj,task,stat)
+data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-4D.nii'#%(subj,task)
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_task-%s_stat-%s_corr-spear_parc-%s_val-r_pred-%s.nii.gz' #% (subj, task, stat, n_parcels, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_stat-%s_corr-spear_parc-%s_roi_stats.csv"
+out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-spear_parc-%s_val-r_pred-%s.nii.gz' #% (subj, task, n_parcels, "r" or "b", predictor_name)
+csv_fname = out_dir + "%s_stat-"+STAT+"_corr-spear_parc-%s_roi_stats.csv"
 atts = RSA_DIR + 'atts.txt' # attributes file
 
 # set variables
@@ -146,7 +142,7 @@ for subj in all_subj:
     for task in tasks:
         print str(datetime.now()) + ": Creating dataset for task '" + task + "' for subject " + subj
 
-        data_fname = data_fnames % (subj, subj, task, stat)
+        data_fname = data_fnames % (subj, subj, task)
         print str(datetime.now()) + ": data_fname file = " + data_fname
         if procedure=='parc':
             ds = fmri_dataset(samples = data_fname)
@@ -187,7 +183,7 @@ for subj in all_subj:
                 # output image
                 nimg_res = map2nifti(sl_map, imghdr = dset_copy.a.imghdr)
                 # save images
-                fname = out_fname % (subj, subj, task, stat, 'sl', measurename)
+                fname = out_fname % (subj, subj, task, 'sl', measurename)
                 nimg_res.to_filename(fname)
                 print str(datetime.now()) + ": File %s saved." % fname
 
@@ -217,12 +213,12 @@ for subj in all_subj:
             for measurename, measure in measure_dict.iteritems():
                 nimg_res = map2nifti(results_dict[measurename], imghdr = ds.a.imghdr)
                 # output filename
-                fname = out_fname % (subj, subj, task, stat, n_parcels, measurename)
+                fname = out_fname % (subj, subj, task, n_parcels, measurename)
                 # save file
                 nimg_res.to_filename(fname)
                 print str(datetime.now()) + ": File %s saved." % fname
 
             out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
-            out_csv_df.to_csv(csv_fname % (subj, subj, stat, n_parcels))
+            out_csv_df.to_csv(csv_fname % (subj, subj, n_parcels))
 
 print str(datetime.now()) + ": End rsa_corr.py"

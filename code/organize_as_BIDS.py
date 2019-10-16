@@ -29,10 +29,11 @@ from __future__ import print_function
 import os
 import sys
 import re
+from funcs import *
 
 # DIRECTORY NAMES
-SUBJECT_DIR_PATH = '../bids/' #os.environ['BIDS_DIR'] + '/'
-SUBJECT_DIR_PREFIX = 'sub-' #os.environ['SUBID_PREFIX']
+BIDS_DIR = '../bids/' #os.environ['BIDS_DIR'] + '/'
+SUBID_PREFIX = 'sub-' #os.environ['SUBID_PREFIX']
 PATH_BETWEEN_SUBJECT_AND_TASK_DIR = '/raw'
 
 # FILE NAMES
@@ -301,7 +302,7 @@ def reorganize_files(subj_dir, sid, dir_list, file_extensions=('.json', '.nii.gz
                 if any(f == folder + ext for ext in file_extensions):
                     rename(data_path + folder + '/' + f, subj_dir + dir_type + '/' + f)
 
-    rename(subj_dir, SUBJECT_DIR_PATH + 'sub-' + sid)
+    rename(subj_dir, BIDS_DIR + 'sub-' + sid)
 
 
 def append_to_json(filename, contents):
@@ -335,7 +336,7 @@ def fix_fmap_json(sid, total_readout_time=None):
     :parameter total_readout_time: string or float number, or None if unnecessary
     """
     # get functional scan names
-    subject_path = SUBJECT_DIR_PATH + 'sub-%s/' % sid
+    subject_path = BIDS_DIR + 'sub-%s/' % sid
     func_names = ['func/' + f for f in os.listdir(subject_path + 'func/') if f.endswith('bold.nii.gz')]
     intended_for = '\t"IntendedFor": ["' + '",\n\t\t"'.join(func_names) + '"\n\t],\n'
 
@@ -354,7 +355,7 @@ def fix_func_json(sid):
     Assuming the files are already organized as BIDS.
     :parameter sid: string subject id
     """
-    subject_path = SUBJECT_DIR_PATH + 'sub-%s/' % sid
+    subject_path = BIDS_DIR + 'sub-%s/' % sid
     json_filenames = [f for f in os.listdir(subject_path + 'func/') if f.endswith('json')]
     for json_name in json_filenames:
         task_name = re.search(r'task-\w+_', json_name).group()[5:-1]
@@ -367,7 +368,7 @@ def generate_test_files(subject_ids):
     """
     try:
         for sid in subject_ids:
-            subject_dir = SUBJECT_DIR_PATH + SUBJECT_DIR_PREFIX + str(sid)
+            subject_dir = BIDS_DIR + SUBID_PREFIX + str(sid)
             os.makedirs(subject_dir)
             os.makedirs(subject_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR)
             os.makedirs(subject_dir + '/irrelevant_folder')
@@ -417,18 +418,18 @@ def main():
 
     print('Running subject(s): ',subject_ids)
 
-    for subj_dir in os.listdir(SUBJECT_DIR_PATH):
+    for subj_dir in os.listdir(BIDS_DIR):
         #print(subj_dir)
         # TODO iterate through subject_ids instead (and print errors)
-        if not subj_dir.startswith(SUBJECT_DIR_PREFIX):
-            #print(subj_dir +' does not start with '+ SUBJECT_DIR_PREFIX)
+        if not subj_dir.startswith(SUBID_PREFIX):
+            #print(subj_dir +' does not start with '+ SUBID_PREFIX)
             continue
-        sid = subj_dir[len(SUBJECT_DIR_PREFIX):]
+        sid = subj_dir[len(SUBID_PREFIX):]
         if subject_ids is not None and sid not in subject_ids:
             #print(sid + ' is not in ',subject_ids)
             continue
 
-        path = SUBJECT_DIR_PATH + subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR + '/'
+        path = BIDS_DIR + subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR + '/'
         sid = str(sid)
 
         print(path)
@@ -455,7 +456,7 @@ def main():
             print('Renaming files')
             rename_files(path, folder_dict)
             print('Reorganizing files')
-            reorganize_files(SUBJECT_DIR_PATH + subj_dir + '/', sid, folder_dict.keys())
+            reorganize_files(BIDS_DIR + subj_dir + '/', sid, folder_dict.keys())
             fix_fmap_json(sid, total_readout_time=TOTAL_READOUT_TIME)
             fix_func_json(sid)
     print('Done')
