@@ -37,6 +37,7 @@ out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-spear_parc-%s_val-r_pred-%s
 csv_fname = out_dir + "%s_stat-"+STAT+"_corr-spear_parc-%s_roi_stats.csv"
 # reference image for saving parcellation output
 parcellation_template = nib.load(MNI_PARCELLATION, mmap=False)
+parcellation_template.set_data_dtype(np.double)
 
 # set variables
 deg_label = 'deg'
@@ -140,7 +141,7 @@ for sub in all_sub:
             print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
             deg_res_data = parcellation_template.get_data()
             dist_res_data = parcellation_template.get_data()
-            out_data_dict = {deg_label: deg_res_data, dist_label: dist_res_data}
+            out_data_dict = {deg_label: deg_res_data.astype(np.double), dist_label: dist_res_data.astype(np.double)}
             # iterate through each ROI of parcellation and run regression
             for r, parc_roi in enumerate(roi_list):
                 print(str(datetime.now()) + ": Running regression on ROI %d (%d/%d)..." % (parc_roi, r+1, N_PARCELS))
