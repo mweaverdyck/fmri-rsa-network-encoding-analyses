@@ -35,7 +35,7 @@ all_subj = sys.argv[2:]
 
 # get project directories
 in_dir = RSA_DIR + '%s/'
-out_dir = RSA_DIR + '%s/' + procedure + '/' #%(subj)
+out_dir = RSA_DIR + '%s/pymvpa/' + procedure + '/' #%(subj)
 # filenames
 data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-4D.nii'#%(subj,task)
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]

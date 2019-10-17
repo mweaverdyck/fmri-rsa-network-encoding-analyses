@@ -65,27 +65,34 @@ col_regressors_prefs_min = ['cosine', 'non_steady_state_outlier']
 
 for subj in subject_ids:
     print("Starting subject "+str(subj))
-    derivatives_dir = derivatives_prefix + subj + '/'
-    if not os.path.exists(derivatives_dir):
-        os.makedirs(derivatives_dir)
-    if not os.path.exists(derivatives_dir+subj):
+    derivatives_dir_sub = derivatives_prefix + subj + '/'
+    if not os.path.exists(derivatives_dir_sub):
+        os.makedirs(derivatives_dir_sub)
+    if not os.path.exists(derivatives_dir_sub+subj):
         # move derivatives to derivatives folder
-        shutil.move(DERIVATIVES_DIR+subj, derivatives_dir)
+        print("moving " +DERIVATIVES_DIR+subj+' to '+derivatives_dir_sub)
+        shutil.move(DERIVATIVES_DIR+subj, derivatives_dir_sub)
 
-    # will run on all subjects in derivatives_dir, so all must be done with fmriprep
+    # will run on all subjects in derivatives_dir_sub, so all must be done with fmriprep
     for t, task_label in enumerate(tasks):
         print("Starting task "+str(t+1)+" of "+str(len(tasks))+": " + task_label)
         print("Calculating first level model...")
         models, models_run_imgs, models_events, models_confounds = \
             first_level_models_from_bids(
                 BIDS_DIR, task_label, space_label
-                , derivatives_folder=derivatives_dir
+                , derivatives_folder=derivatives_dir_sub
             )
 
+        if sys.version_info[0] == 3:
+            # note, need list() around zip in python 3 but not in python 2
+            model_and_args = list(zip(models, models_run_imgs, models_events, models_confounds))
+        elif sys.version_info[0] == 2:
+            model_and_args = zip(models, models_run_imgs, models_events, models_confounds)
 
-        model_and_args = zip(models, models_run_imgs, models_events, models_confounds)
+        print(len(model_and_args))
         # iterate through subjects
         for midx, (model, imgs, events, confounds) in enumerate(model_and_args):
+            print(midx)
             # do not mask
             model.mask=False
             # get subject label
@@ -195,6 +202,6 @@ for subj in subject_ids:
 
 
     # move subjects' folders back to fmriprep
-    print("Moving subject's data from " + derivatives_dir + " to " + DERIVATIVES_DIR)
-    shutil.move(derivatives_dir+subj, DERIVATIVES_DIR)
-    os.rmdir(derivatives_dir)
+    print("Moving subject's data from " + derivatives_dir_sub + " to " + DERIVATIVES_DIR)
+    shutil.move(derivatives_dir_sub+subj, DERIVATIVES_DIR)
+    os.rmdir(derivatives_dir_sub)

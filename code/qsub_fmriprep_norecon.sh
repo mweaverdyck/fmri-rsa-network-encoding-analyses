@@ -22,13 +22,13 @@ in_dir=${RECON_DIR}
 out_dir=${FMRIPREP_DIR}
 
 begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f numid $@
-log_args="$LOG_ARGS"
+log_args="${LOG_ARGS}"
 subs=( "${SUBS[@]}" )
 
 # run fmriprep
 ##for version 1.3.2
-#fmriprep ${BIDS_DIR} ${BIDS_DIR} --work-dir "${FMRIPREP_DIR}/work" --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-space T1w template MNI152NLin6Asym --fs-no-reconall --nthreads 4 --omp-nthreads 4 --mem-mb 32000 | tee -a ${log_file}
-fmriprep ${BIDS_DIR} ${BIDS_DIR} --work-dir "${FMRIPREP_DIR}/work" --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-space T1w template --fs-no-reconall --nthreads 4 --omp-nthreads 4 --mem-mb 32000 | tee -a ${log_file}
+##fmriprep ${BIDS_DIR} ${BIDS_DIR} --work-dir "${FMRIPREP_DIR}/work" --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-space T1w template MNI152NLin6Asym --fs-no-reconall --nthreads 4 --omp-nthreads 4 --mem-mb 32000 | tee -a ${log_file}
+fmriprep ${BIDS_DIR} "${FMRIPREP_DIR}/.." --work-dir "${FMRIPREP_DIR}/work" --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-space T1w template --fs-no-reconall --nthreads 4 --omp-nthreads 4 --mem-mb 32000 | tee -a ${log_file}
 
 # log end
 log_end $log_args

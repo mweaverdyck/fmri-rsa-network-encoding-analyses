@@ -20,7 +20,7 @@ label='GLM'
 in_dir=${DERIVATIVES_DIR}
 out_dir=${GLM_DIR}
 
-begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f numid $@
+begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
 log_args="$LOG_ARGS"
 subs=( "${SUBS[@]}" )
 
@@ -43,10 +43,10 @@ for s in "${subs[@]}"; do
     python3 glm.py "${s}" | tee -a $log_file
     write_log $log_args "Finished GLM"
 
-    deriv_dir="${in_dir}/derivatives_$s/$s"
+    deriv_dir="${in_dir}/derivatives_$s"
     if [[ -d ${deriv_dir} ]]; then
         write_log $log_args "WARNING: Moving subjects directory from derivatives folder"
-        mv ${deriv_dir} "${in_dir}/"
+        mv "${deriv_dir}/$s" "${in_dir}/"
         rm -r ${deriv_dir}
     fi
 done

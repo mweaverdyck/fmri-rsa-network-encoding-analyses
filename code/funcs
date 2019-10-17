@@ -12,17 +12,20 @@ EXCLUDE_SUBS=( "204" )
 # keywords
 export ALL='all'
 export NEW='new'
+export PARC='parc'
+export SL='sl'
 
 # Global Project Variables
 # directories
 export PROJECT_DIR=$data_dir #'/u/project/CCN/cparkins/data/encoding'
-export BIDS_DIR="${PROJECT_DIR}/bids"
 export CODE_DIR="${PROJECT_DIR}/code"
-export QA_DIR="${BIDS_DIR}/qa"
-export RECON_DIR="${BIDS_DIR}/freesurfer"
-export FMRIPREP_DIR="${BIDS_DIR}/fmriprep"
+export BIDS_DIR="${PROJECT_DIR}/bids"
+export PREP_DIR="${BIDS_DIR}/prep"
 export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
 export SECOND_LEVEL_DIR="${BIDS_DIR}/level2"
+export RECON_DIR="${PREP_DIR}/freesurfer"
+export FMRIPREP_DIR="${PREP_DIR}/fmriprep"
+export QA_DIR="${BIDS_DIR}/qa"
 export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
 export GLM_DIR="${FIRST_LEVEL_DIR}/glm"
 export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
@@ -49,8 +52,8 @@ export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefe
 export SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
-export PROCEDURES_ALL=( "parc" "sl" ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$ALL
+export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
+export PROCEDURE=$PARC
 if [[ $PROCEDURE == $ALL ]]; then
   PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else

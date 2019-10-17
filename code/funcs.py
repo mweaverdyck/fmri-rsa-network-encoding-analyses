@@ -4,13 +4,19 @@ import os
 from os.path import expanduser
 HOME = expanduser("~")
 
-# arrays that must be manually updated
-EXCLUDE_SUBS=["204"]
-PROCEDURES_ALL=["parc","sl"]
 
 # keywords
 ALL = os.environ['ALL']
 NEW = os.environ['NEW']
+PARC = os.environ['PARC']
+SL = os.environ['SL']
+
+
+# arrays that must be manually updated
+EXCLUDE_SUBS=["204"]
+TASKS=['friend', 'number']
+PROCEDURES_ALL=[PARC, SL]
+
 
 # get project directories
 PROJECT_DIR = os.environ['PROJECT_DIR'] + '/'
@@ -28,10 +34,10 @@ MNI_DIR = os.environ['MNI_DIR'] + '/'
 
 # get project variables
 SUBID_PREFIX = os.environ['SUBID_PREFIX']
-N_NODES = os.environ['N_NODES']
-N_TRS = os.environ['N_TRS']
-N_TRS_DEL = os.environ['N_TRS_DEL']
-N_PARCELS = os.environ['N_PARCELS']
+N_NODES = int(os.environ['N_NODES'])
+N_TRS = int(os.environ['N_TRS'])
+N_TRS_DEL = int(os.environ['N_TRS_DEL'])
+N_PARCELS = int(os.environ['N_PARCELS'])
 MNI_PARCELLATION = os.environ['MNI_PARCELLATION']
 SPACE = os.environ['SPACE']
 STAT = os.environ['STAT']
