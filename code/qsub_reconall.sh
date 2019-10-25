@@ -24,6 +24,9 @@ subs=( "${SUBS[@]}" )
 
 export FREESURFER_HOME="/u/project/CCN/apps/freesurfer/6.0.0"
 source ${FREESURFER_HOME}/SetUpFreeSurfer.sh
+# these variable must be set for freesurfer
+export SUBJECTS_DIR=${RECON_DIR}
+export STUDY_DIR=${BIDS_DIR}
 
 write_log ${log_args} "Running recon-all on subjects: ${subs[@]}"
 
@@ -41,7 +44,7 @@ for sub in "${subs[@]}"; do
 	write_log ${log_args} "Copying anatomical to ${out_dir}/${sub}"
 	cp ${in_dir}/${sub}/anat/*T1w.nii.gz ${out_dir}/${sub}/
 
-	write_log ${log_args} "Unzipping anatomical in ${out_dir}/{$sub}"
+	write_log ${log_args} "Unzipping anatomical in ${out_dir}/$sub"
 	gunzip ${out_dir}/${sub}/*T1w.nii.gz
 
 	mkdir -p ${out_dir}/${sub}/mri/orig
