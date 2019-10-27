@@ -45,7 +45,7 @@ for arg in "$@"; do
       subs=( $arg $2)
     elif [[ $arg == "full" ]]; then
       # run full first level analysis
-      scripts=( reconall fmriprep_norecon glm rsacorr )
+      scripts=( reconall fmriprep glm rsacorr )
     else
       # not a subject
       if [[ $arg != qsub* ]] && [[ $arg != /*.sh ]]; then arg=qsub_"$arg".sh; fi

@@ -34,7 +34,7 @@ export MNI_DIR="${BIDS_DIR}/mni_icbm152_nlin_asym_09c/Schaefer"
 # analysis steps
 export STEPS=( "RECONSTRUCTION" "FMRIPREP" "GLM" "RSA" "GROUP_LEVEL" )
 pref="${CODE_DIR}/qsub_"
-export SCRIPTS=( "${pref}reconall.sh" "${pref}fmriprep_norecon.sh" "${pref}glm.sh" "${pref}rsacorr.sh" "${pref}level2ttestparc.sh" )
+export SCRIPTS=( "${pref}reconall.sh" "${pref}fmriprep.sh" "${pref}glm.sh" "${pref}rsacorr.sh" "${pref}level2ttestparc.sh" )
 export DIRS=( "${RECON_DIR}" "${FMRIPREP_DIR}" "${GLM_DIR}" "${RSA_DIR}" "${LEVEL2_TTEST_DIR}" )
 export FIRST_LEVEL_STEPS=( 1 1 1 1 0 )
 export SECOND_LEVEL_STEPS=( 0 0 0 0 1 )
