@@ -55,10 +55,15 @@ export STAT="t"
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
 export PROCEDURE=$PARC
 if [[ $PROCEDURE == $ALL ]]; then
-  PROCEDURES=( "${PROCEDURES_ALL[@]}" )
+  export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
-  PROCEDURES=( $PROCEDURE )
+  export PROCEDURES=( $PROCEDURE )
 fi
+
+# filenames
+export CFD_FNAME="${CODE_DIR}/CFD_measures.csv"
+export ATTS_FNAME="${CODE_DIR}/atts.txt"
+
 
 NUMID_FORM='^[0-9][0-9][0-9]'
 SUBID_FORM="^${SUBID_PREFIX}[0-9][0-9][0-9]"

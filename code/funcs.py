@@ -4,19 +4,16 @@ import os
 from os.path import expanduser
 HOME = expanduser("~")
 
-
 # keywords
 ALL = os.environ['ALL']
 NEW = os.environ['NEW']
 PARC = os.environ['PARC']
 SL = os.environ['SL']
 
-
 # arrays that must be manually updated
 EXCLUDE_SUBS=["204"]
 TASKS=['friend', 'number']
 PROCEDURES_ALL=[PARC, SL]
-
 
 # get project directories
 PROJECT_DIR = os.environ['PROJECT_DIR'] + '/'
@@ -46,6 +43,10 @@ if PROCEDURE == ALL:
     PROCEDURES = PROCEDURES_ALL
 else:
     PROCEDURES = [PROCEDURE]
+
+# filenames
+CFD_FNAME = os.environ['CFD_FNAME']
+ATTS_FNAME = os.environ['ATTS_FNAME']
 
 # are you on a local computer or Hoffman2
 if HOME[:3] == '/u/':
