@@ -27,43 +27,43 @@ subs=( "${SUBS[@]}" )
 write_log $log_args "Copying atts.txt file"
 cp "${CODE_DIR}/atts.txt" "${out_dir}/"
 
-# concatenate t-images from feat folders for each subject, for each block
-for sub in "${subs[@]}"; do
-    write_log $log_args "Analyzing subject: $sub"
-    # subject's contrasts directory
-    subdir="${in_dir}/${sub}"
-    out_subdir="${out_dir}/${sub}"
-    mkdir -p "${out_subdir}"
-
-    write_log $log_args "Subject input directory: $subdir"
-    write_log $log_args "Subject output directory: ${out_subdir}"
-
-    # create one concatenated image per task
-    for task in "${TASKS[@]}"; do
-        # file prefix (must match nii in subject's directory)
-        pref="${sub}_task-${task}_space-${SPACE}_stat-${STAT}_node-"
-        # output file name
-        img_4d="${out_subdir}/${pref}4D"
-        # input file names
-        img_pref="${subdir}/${pref}"
-        # get list of node images
-        node_imgs=()
-        for n in ${NODES[@]}; do
-            node_imgs+=( "${img_pref}0$n" )
-        done
-        # create each node's contrast
-        if [ ! -f "${img_4d}.nii" ]; then
-            write_log $log_args "Concatenating node images for task $task..."
-            # merge all nodes by the 4th dimension
-            fslmerge -t ${img_4d} ${node_imgs[@]}
-            #${img_pref}00 ${img_pref}01 ${img_pref}02 ${img_pref}03 ${img_pref}04 ${img_pref}05 ${img_pref}06 ${img_pref}07 ${img_pref}08 ${img_pref}09
-            gunzip "${img_4d}.nii.gz"
-            write_log $log_args "File ${img_4d} saved and unzipped."
-        else
-            write_log $log_args "Subject already agregated. Final file exists: ${img_4d}"
-        fi
-    done
-done
+# # concatenate t-images from feat folders for each subject, for each block
+# for sub in "${subs[@]}"; do
+#     write_log $log_args "Analyzing subject: $sub"
+#     # subject's contrasts directory
+#     subdir="${in_dir}/${sub}"
+#     out_subdir="${out_dir}/${sub}"
+#     mkdir -p "${out_subdir}"
+#
+#     write_log $log_args "Subject input directory: $subdir"
+#     write_log $log_args "Subject output directory: ${out_subdir}"
+#
+#     # create one concatenated image per task
+#     for task in "${TASKS[@]}"; do
+#         # file prefix (must match nii in subject's directory)
+#         pref="${sub}_task-${task}_space-${SPACE}_stat-${STAT}_node-"
+#         # output file name
+#         img_4d="${out_subdir}/${pref}4D"
+#         # input file names
+#         img_pref="${subdir}/${pref}"
+#         # get list of node images
+#         node_imgs=()
+#         for n in ${NODES[@]}; do
+#             node_imgs+=( "${img_pref}0$n" )
+#         done
+#         # create each node's contrast
+#         if [ ! -f "${img_4d}.nii" ]; then
+#             write_log $log_args "Concatenating node images for task $task..."
+#             # merge all nodes by the 4th dimension
+#             fslmerge -t ${img_4d} ${node_imgs[@]}
+#             #${img_pref}00 ${img_pref}01 ${img_pref}02 ${img_pref}03 ${img_pref}04 ${img_pref}05 ${img_pref}06 ${img_pref}07 ${img_pref}08 ${img_pref}09
+#             gunzip "${img_4d}.nii.gz"
+#             write_log $log_args "File ${img_4d} saved and unzipped."
+#         else
+#             write_log $log_args "Subject already agregated. Final file exists: ${img_4d}"
+#         fi
+#     done
+# done
 
 
 for procedure in "${PROCEDURES[@]}"; do

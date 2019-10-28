@@ -1,5 +1,5 @@
 #!/bin/python
-# runs correlation between neural data and predictors
+# runs regression between neural data and various model predictors
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import spearmanr, pearsonr, norm, zscore
 import os
@@ -122,11 +122,11 @@ print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " +
 in_dir = RSA_DIR + '%s/'
 out_dir = RSA_DIR + '%s/reg/' + procedure + '/' #%(sub)
 # filenames
-data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-4D.nii'#%(sub,task)
+data_fnames = GLM_DIR + '%s/%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.nii'#%(sub, sub,task,node)
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-reg_parc-%s_val-r_pred-%s.nii.gz' #% (sub, task, N_PARCELS, "r" or "b", predictor_name)
+out_fname = out_dir + '%s_stat-'+STAT+'_corr-reg_parc-%s_val-r_pred-%s.nii.gz' #% (sub, N_PARCELS, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_stat-"+STAT+"_corr-reg_parc-%s_roi_stats.csv"
 
 # set variables
@@ -174,7 +174,7 @@ deg_rdm = {deg_label: deg_tri}
 
 # dictionary of rdms by subject key
 out_csv_df = []
-colnames = ['sub','task','roi','predictor','beta']
+colnames = ['sub','roi','predictor','beta']
 
 # run regression for each subject
 for sub in all_sub:
@@ -183,6 +183,25 @@ for sub in all_sub:
     # make output directories if they don't exist
     if not os.path.exists(out_dir % sub):
         os.makedirs(out_dir % sub)
+
+    print(str(datetime.now()) + ": Reading in data for subject " + sub)
+    # read in 4D image
+    # TODO: read in 3D images and combine in script, rather than in wrapper
+    sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
+    sub_dims = sub_template.get_data().shape + (N_NODES,)
+    sub_data = np.empty(sub_dims)
+    for n in range(N_NODES):
+        print(str(datetime.now()) + ": Reading in node " + str(n))
+        # average this node's data from both runs
+        d1 = load_nii(data_fnames % (sub, sub, TASKS[0], n))
+        d2 = load_nii(data_fnames % (sub, sub, TASKS[1], n))
+        d_avg = (d1+d2)/2
+        # save to fourth dimension
+        sub_data[:,:,:,n] = d_avg
+        #out_img = nib.Nifti1Image(d_avg, sub_template.affine, sub_template.header)
+        #data_fname = data_fnames % (sub, sub, TASKS[0], n)
+        #print(str(datetime.now()) + ": data_fname file = " + data_fname)
+        #sub_data = load_nii(data_fname)
 
     # find subject's node-image mapping
     node_order = get_node_mapping( sub )
@@ -219,71 +238,63 @@ for sub in all_sub:
         if N_PARCELS != len(roi_list):
             print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
 
-    for task in TASKS:
-        print(str(datetime.now()) + ": Reading in data for task '" + task + "' for subject " + sub)
-        # read in 4D image
-        # TODO: read in 3D images and combine in script, rather than in wrapper
-        data_fname = data_fnames % (sub, sub, task)
-        print(str(datetime.now()) + ": data_fname file = " + data_fname)
-        sub_data = load_nii(data_fname)
+    if isSl():
+        sub_data_copy = deepcopy(sub_data)
+        for measurename, measure in measure_dict.iteritems():
+            print(str(datetime.now()) + ": Creating searchlight of size " + str(rad))
+            sl = sphere_searchlight(measure, rad) #, postproc=FisherTransform)
+            print(str(datetime.now()) + ": Running searchlight.")
+            sl_map = sl(sub_data_copy)
 
-        if isSl():
-            sub_data_copy = deepcopy(sub_data)#_dict[sub][task])
-            for measurename, measure in measure_dict.iteritems():
-                print(str(datetime.now()) + ": Creating searchlight of size " + str(rad))
-                sl = sphere_searchlight(measure, rad) #, postproc=FisherTransform)
-                print(str(datetime.now()) + ": Running searchlight.")
-                sl_map = sl(sub_data_copy)
+            print(str(datetime.now()) + ": Saving output images")
+            # output image
+            nimg_res = map2nifti(sl_map, imghdr = sub_data_copy.a.imghdr)
+            # save images
+            fname = out_fname % (sub, sub, 'sl', measurename)
+            nimg_res.to_filename(fname)
+            print(str(datetime.now()) + ": File %s saved." % fname)
 
-                print(str(datetime.now()) + ": Saving output images")
-                # output image
-                nimg_res = map2nifti(sl_map, imghdr = sub_data_copy.a.imghdr)
-                # save images
-                fname = out_fname % (sub, sub, task, 'sl', measurename)
-                nimg_res.to_filename(fname)
-                print(str(datetime.now()) + ": File %s saved." % fname)
-
-        elif isParc():
-            print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
-            out_data = parcellation_template.get_data().astype(np.double)
-            out_data_dict = {}
+    elif isParc():
+        print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
+        out_data = parcellation_template.get_data().astype(np.double)
+        out_data_dict = {}
+        for i,k in enumerate(model_keys):
+            out_data_dict[k] = copy.deepcopy(out_data)
+        # iterate through each ROI of parcellation and run regression
+        for r, parc_roi in enumerate(roi_list):
+            print(str(datetime.now()) + ": Running regression on ROI %d (%d/%d)..." % (parc_roi, r+1, N_PARCELS))
+            # create mask for this ROI
+            roi_mask = parc_data==parc_roi
+            roi_mask = roi_mask.astype(int)
+            roi_data = np.zeros((N_NODES,sum(roi_mask.flatten())))
+            for n in range(N_NODES):
+                sub_data_node = sub_data[:,:,:,n]
+                roi_data_node = sub_data_node * roi_mask
+                roi_data_node = roi_data_node.flatten()
+                roi_data[n:] = roi_data_node[roi_data_node != 0]
+            # create neural RDM
+            roi_tri = pdist(roi_data, metric='correlation')
+            # run regression
+            res = run_rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
             for i,k in enumerate(model_keys):
-                out_data_dict[k] = out_data
-            # iterate through each ROI of parcellation and run regression
-            for r, parc_roi in enumerate(roi_list):
-                print(str(datetime.now()) + ": Running regression on ROI %d (%d/%d)..." % (parc_roi, r+1, N_PARCELS))
-                # create mask for this ROI
-                roi_mask = parc_data==parc_roi
-                roi_mask = roi_mask.astype(int)
-                roi_data = np.zeros((N_NODES,sum(roi_mask.flatten())))
-                for n in range(N_NODES):
-                    sub_data_node = sub_data[:,:,:,n]
-                    roi_data_node = sub_data_node * roi_mask
-                    roi_data_node = roi_data_node.flatten()
-                    roi_data[n:] = roi_data_node[roi_data_node != 0]
-                # create neural RDM
-                roi_tri = pdist(roi_data, metric='correlation')
-                # run regression
-                res = run_rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
-                for i,k in enumerate(model_keys):
-                    beta=res[i]
-                    # save to dataframe
-                    out_csv_df.append([sub, task, parc_roi, k, beta])
-                    # update voxels
-                    model_data = out_data_dict[k]
-                    model_data[out_data==parc_roi] = beta
-                    out_data_dict[k] = model_data
+                beta=res[i]
+                # save to dataframe
+                out_csv_df.append([sub, parc_roi, k, beta])
+                # update voxels
+                model_data = out_data_dict[k]
+                model_data[model_data==parc_roi] = beta
+                out_data_dict[k] = model_data
 
 
-            for k in model_keys:
-                out_img = nib.Nifti1Image(out_data_dict[k], parcellation_template.affine, parcellation_template.header)
-                # output filename
-                fname = out_fname % (sub, sub, task, N_PARCELS, k)
-                # save file
-                out_img.to_filename(fname)
-                print(str(datetime.now()) + ": File %s saved." % fname)
+        for k in model_keys:
+            out_img = nib.Nifti1Image(out_data_dict[k], parcellation_template.affine, parcellation_template.header)
+            # output filename
+            fname = out_fname % (sub, sub, N_PARCELS, k)
+            # save file
+            out_img.to_filename(fname)
+            print(str(datetime.now()) + ": File %s saved." % fname)
 
-            out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
-            out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
+        out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
+        out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
 
 print(str(datetime.now()) + ": End rsa_regs.py")
