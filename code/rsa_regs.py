@@ -23,6 +23,11 @@ def load_nii( imgpath ):
     img4D = nib.load(imgpath, mmap=False).get_data()
     return img4D
 
+def save_nii( data, refnii, filename ):
+    out_img = nib.Nifti1Image(data, refnii.affine, refnii.header)
+    out_img.to_filename(filename)
+    print(str(datetime.now()) + ": File %s saved." % filename)
+
 def make_RDM( data_array ):
     # find number of nodes
     n = len(data_array)
@@ -287,12 +292,8 @@ for sub in all_sub:
 
 
         for k in model_keys:
-            out_img = nib.Nifti1Image(out_data_dict[k], parcellation_template.affine, parcellation_template.header)
-            # output filename
             fname = out_fname % (sub, sub, N_PARCELS, k)
-            # save file
-            out_img.to_filename(fname)
-            print(str(datetime.now()) + ": File %s saved." % fname)
+            save_nii( out_data_dict[k], parcellation_template, fname )
 
         out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
         out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
