@@ -32,18 +32,19 @@ export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
 export MNI_DIR="${BIDS_DIR}/mni_icbm152_nlin_asym_09c/Schaefer"
 
 # analysis steps
-export STEPS=( "RECONSTRUCTION" "FMRIPREP" "GLM" "RSA" "GROUP_LEVEL" )
+export STEPS=( "START" "RECONSTRUCTION" "FMRIPREP" "GLM" "RSA" "GROUP_LEVEL" )
 pref="${CODE_DIR}/qsub_"
-export SCRIPTS=( "${pref}reconall.sh" "${pref}fmriprep.sh" "${pref}glm.sh" "${pref}rsacorr.sh" "${pref}level2ttestparc.sh" )
-export DIRS=( "${RECON_DIR}" "${FMRIPREP_DIR}" "${GLM_DIR}" "${RSA_DIR}" "${LEVEL2_TTEST_DIR}" )
-export FIRST_LEVEL_STEPS=( 1 1 1 1 0 )
-export SECOND_LEVEL_STEPS=( 0 0 0 0 1 )
+export SCRIPTS=( "n/a" "${pref}reconall.sh" "${pref}fmriprep.sh" "${pref}glm.sh" "${pref}rsa.sh" "${pref}level2ttestparc.sh" )
+export DIRS=( "${BIDS_DIR}" "${RECON_DIR}" "${FMRIPREP_DIR}" "${GLM_DIR}" "${RSA_DIR}" "${LEVEL2_TTEST_DIR}" )
+export FIRST_LEVEL_STEPS=( 0 1 1 1 1 0 )
+export SECOND_LEVEL_STEPS=( 0 0 0 0 0 1 )
 
 # project settings
 export SUBID_PREFIX="sub-"
 export TASKS=( "friend" "number" )
 export NODES=( {0..9} ) # conditions
 export N_NODES=10 # number of conditions
+export TR=0.75 # tr in seconds
 export N_TRS=514 # total number of TRS collected
 export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
 export N_PARCELS=400 # number of ROIs in parcellation
@@ -227,7 +228,7 @@ make_n_digits() {
 	fi
 }
 
-function get_subs {
+function get_subs() {
   d=$1
   sub_dirs=( $(ls -d ${d}/sub-???) )
   DIR_SUBS=()
@@ -251,6 +252,7 @@ get_all_subs() {
 
 get_new_subs() {
   step_func=$1
+  echo "Finding new subjects for step: ${step_func}"
   get_index ${step_func} ${STEPS[@]}
   if [[ -z ${INDEX} ]]; then
     get_subs ${BIDS_DIR}

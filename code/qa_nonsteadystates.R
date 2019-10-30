@@ -16,7 +16,7 @@ bids_dir <- '../bids'
 #setwd(bids_dir)
 
 # path to confounds folder
-fmriprep_dir <- paste0(bids_dir, '/fmriprep')
+fmriprep_dir <- paste0(bids_dir, '/prep/fmriprep')
 # list all directories in this folder (subject directories)
 all_fmriprep_dirs <- list.dirs(path = fmriprep_dir, full.names = FALSE, recursive = FALSE)
 
@@ -52,7 +52,7 @@ for (d in all_fmriprep_dirs) {
           run_i <- regexpr("run-", f)[1]+4
           # run number
           run <- substr(f,run_i,run_i+1)
-  
+
           # read in this file
           confound_csv <- read.csv(f, sep = '\t') #, na.strings = 'n/a')
           confound_csv_out <- tail(confound_csv, -rm_n_trs)
@@ -60,7 +60,7 @@ for (d in all_fmriprep_dirs) {
           out_fname <- paste0(substr(confound_basef, 1, 41), '_rmtr-', as.character(rm_n_trs), substr(confound_basef, 42, 56))
           readr::write_tsv(confound_csv_out, path = paste0(out_dir,'/',sub,'/func/', out_fname))
           print(paste(paste0(out_dir,'/',sub,'/func/', out_fname),"saved"))
-  
+
           # get number of non-steady state outliers
           nonsteady <- grepl( "non_steady_state_outlier" , names( confound_csv ) )
           # subselect movement parameters

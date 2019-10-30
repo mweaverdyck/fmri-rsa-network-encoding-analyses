@@ -37,15 +37,15 @@ for arg in "$@"; do
   is_sub $arg
   if [[ ${isSub} -eq 1 ]]; then
     # is a subject
-    subs=( $subs $arg )
-    echo $arg "subject added to list: ${subs[@]}"
+    subs=( ${subs[@]} $arg )
+    echo "subject added to list: $arg"
   else
     if [[ $arg == $ALL ]] || [[ $arg == $NEW ]]; then
       # run all subjects
       subs=( $arg $2)
     elif [[ $arg == "full" ]]; then
       # run full first level analysis
-      scripts=( reconall fmriprep glm rsa )
+      scripts=( qsub_reconall.sh qsub_fmriprep.sh qsub_glm.sh qsub_rsa.sh qsub_rsaregs.sh )
     else
       # not a subject
       if [[ $arg != qsub* ]] && [[ $arg != /*.sh ]]; then arg=qsub_"$arg".sh; fi
