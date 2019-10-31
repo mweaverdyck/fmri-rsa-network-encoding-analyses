@@ -282,7 +282,7 @@ for sub in all_sub:
             # run regression
             res = run_rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
             for i,k in enumerate(model_keys):
-                beta=res[i]
+                beta=res[i][0]
                 # save to dataframe
                 out_csv_df.append([sub, parc_roi, k, beta])
                 # update voxels
