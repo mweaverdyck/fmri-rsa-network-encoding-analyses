@@ -139,6 +139,7 @@ def rename_func_dirs(path, sid, task_prefix, task_name, run_num_dict=None, multi
 
     for i in range(len(run_order) - 2):
         if run_order[i + 2] <= run_order[i]:
+            print(run_order)
             raise RuntimeError('Folders are not ordered by time.')
     if multi_run:
         run_ids = [re.search(r'r0\d+', d).group()[1:3] for d in dir_list]  # first number that matches r0#
@@ -284,7 +285,7 @@ def reorganize_files(subj_dir, sid, dir_list, file_extensions=('.json', '.nii.gz
                      subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR)
     :param file_extensions: a list of file extensions that need to be moved
     """
-    dir_lists = {'func': [], 'anat': [], 'fmap': []}
+    dir_lists = {'func': [], 'anat': [], 'fmap': [], 'sbref': []}
     for folder in dir_list:
         if 'bold' in folder:
             dir_lists['func'].append(folder)
@@ -292,6 +293,8 @@ def reorganize_files(subj_dir, sid, dir_list, file_extensions=('.json', '.nii.gz
             dir_lists['anat'].append(folder)
         elif any(postfix in folder for postfix in FMAP_NAME_DICT.values()):
             dir_lists['fmap'].append(folder)
+        elif 'sbref' in folder:
+            dir_lists['sbref'].append(folder)
 
     data_path = subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR + '/'
     for dir_type in dir_lists:
