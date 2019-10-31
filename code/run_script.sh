@@ -35,7 +35,7 @@ done
 for arg in "$@"; do
   # test if this argument is in a subject format
   is_sub $arg
-  if [[ ${isSub} -eq 1 ]]; then
+  if [[ ${isSub} -ne 0 ]]; then
     # is a subject
     subs=( ${subs[@]} $arg )
     echo "subject added to list: $arg"
