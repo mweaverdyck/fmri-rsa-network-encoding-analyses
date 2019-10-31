@@ -194,6 +194,8 @@ test_hoffman() {
 is_sub() {
 	if [[ $1 =~ $NUMID_FORM ]] || [[ $1 =~ $SUBID_FORM ]]; then
     isSub=1
+  elif [[ $1 == $ALL ]] || [[ $1 == $NEW ]]; then
+    isSub=2
   else
     isSub=0
 	fi
@@ -241,7 +243,7 @@ function get_subs() {
 get_all_subs() {
   step_func=$1
   get_index ${step_func} ${STEPS[@]}
-  if [[ -z ${INDEX} ]]; then
+  if [[ -z ${INDEX} ]] || [[ ${INDEX} -eq 0 ]]; then
     in_dir_func=${BIDS_DIR}
   else
     pre_index="$(($INDEX - 1))"
@@ -358,6 +360,7 @@ function convert_sub_args {
   if [[ ${in_subs} == $ALL ]] || [[ ${in_subs} == $NEW ]]; then
     step_func=${in_subs[1]}
     if [[ ${in_subs} == $ALL ]]; then
+       echo "getting all subjects for step: ${step_func}"
        get_all_subs ${step_func}
     elif [[ ${in_subs} == $NEW ]]; then
        get_new_subs ${step_func}
