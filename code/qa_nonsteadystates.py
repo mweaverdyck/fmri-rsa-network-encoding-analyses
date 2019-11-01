@@ -45,7 +45,8 @@ for sub in all_fmriprep_dirs:
         sub_df=pd.DataFrame(None, columns=['nonsteady_rows', 'task', 'run', 'sub'])
         for f in confound_fnames:
           # get base filename
-          base_f = f.split('/')[-1][0:25]
+          confound_basef = f.split('/')[-1]
+          base_f = confound_basef[0:25]
           print(paste('Reading in files starting with:', base_f))
           events_f = os.path.join(raw_sub_dir,events_fnames+'*')
           events_csv = pd.read_csv(events_f, delimiter='\t')
@@ -61,9 +62,9 @@ for sub in all_fmriprep_dirs:
 
           # read in this file
           confound_csv = pd.read_csv(f, delimiter = '\t') #, na.strings = 'n/a')
-          confound_csv_out = tail(confound_csv, -N_TRS_DEL)
-          confound_basef = basename(f)
-          out_fname = paste0(substr(confound_basef, 1, 41), '_rmtr-', as.character(N_TRS_DEL), substr(confound_basef, 42, 56))
+          confound_csv_out = confound_csv.iloc[N_TRS_DEL:,:]
+          out_fname = confound_basef[0:40]+'_rmtr-' + str(N_TRS_DEL) + confound_basef[40:]
+          #out_fname = paste0(substr(confound_basef, 1, 41), '_rmtr-', as.character(N_TRS_DEL), substr(confound_basef, 42, 56))
           readr::write_tsv(confound_csv_out, path = paste0(out_dir,'/',sub,'/func/', out_fname))
           print(paste(paste0(out_dir,'/',sub,'/func/', out_fname),"saved"))
 

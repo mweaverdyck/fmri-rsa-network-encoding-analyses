@@ -26,15 +26,16 @@ procedure = sys.argv[1]
 all_sub = sys.argv[2:]
 
 # get project directories
+corr_label='spear'
 in_dir = RSA_DIR + '%s/'
-out_dir = RSA_DIR + '%s/' + procedure + '/' #%(sub)
+out_dir = RSA_DIR + '%s/' + corr_label + '/' + procedure + '/' #%(sub)
 # filenames
 data_fnames = in_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-4D.nii'#%(sub,task)
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-spear_parc-%s_val-r_pred-%s.nii.gz' #% (sub, task, N_PARCELS, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_stat-"+STAT+"_corr-spear_parc-%s_roi_stats.csv"
+out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-'+corr_label+'_parc-%s_val-r_pred-%s.nii.gz' #% (sub, task, N_PARCELS, "r" or "b", predictor_name)
+csv_fname = out_dir + "%s_stat-"+STAT+"_corr-"+corr_label+"_parc-%s_roi_stats.csv"
 # reference image for saving parcellation output
 parcellation_template = nib.load(MNI_PARCELLATION, mmap=False)
 parcellation_template.set_data_dtype(np.double)
@@ -90,12 +91,12 @@ print(dist_mat)
 model_rdms = {deg_label: deg_tri, dist_label: dist_tri}
 
 # dictionary of rdms by subject key
-out_csv_df = []
 colnames = ['sub','task','roi','predictor','r']
 
 # run regression for each subject
 for sub in all_sub:
     print(str(datetime.now()) + ": Analyzing subject %s" % sub)
+    out_csv_df = []
 
     # make output directories if they don't exist
     if not os.path.exists(out_dir % sub):
@@ -164,7 +165,9 @@ for sub in all_sub:
                     model_tri = model_rdms[model_name]
                     r_val, p = spearmanr(roi_tri, model_tri)
                     # save to dataframe
-                    out_csv_df.append([sub, task, parc_roi, model_name, r_val])
+                    row_arr=[sub, task, parc_roi, model_name, r_val]
+                    print(row_arr)
+                    out_csv_df.append(row_arr)
                     # update voxels
                     model_data = out_data_dict[model_name]
                     model_data[model_data==parc_roi] = r_val
@@ -179,7 +182,7 @@ for sub in all_sub:
                 out_img.to_filename(fname)
                 print(str(datetime.now()) + ": File %s saved." % fname)
 
-            out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
-            out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
+    out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
+    out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
 
 print(str(datetime.now()) + ": End rsa.py")
