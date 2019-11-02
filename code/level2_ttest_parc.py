@@ -25,12 +25,14 @@ def save_parcel( parcel_vals, filename, parcellation=MNI_PARCELLATION ):
     parcel_vals = np.array(parcel_vals)
     # MNI parcellationlation
     parcellation = nib.load(MNI_PARCELLATION, mmap=False)
-    parcellation.set_data_dtype(np.double)
+    parcellation.set_data_dtype(np.float)
     p_data = parcellation.get_data()
+    out_data = deepcopy(p_data) * 1.0
     for i in range(N_PARCELS):
-        p = i+1
-        p_data[ p_data==p ] = parcel_vals[i]
-    save_nii(p_data, parcellation, filename)
+        p = (i+1)*1.0
+        out_val = 1-parcel_vals[i]
+        out_data[ p_data==p ] = out_val
+    save_nii(out_data, parcellation, filename)
 
 def correct_p (t,p):
     if t < 0:
@@ -143,13 +145,14 @@ for corr_label in corr_labels:
                 t,p = ttest_rel(df[rel_col], df[nonrel_col])
                 # correct to one-sample
                 t,p = correct_p(t,p)
-                diff = df[rel_col] - df[nonrel_col]
+                diff = np.mean(df[rel_col] - df[nonrel_col])
                 diff_df.loc[r]=['diff',diff,pred,r,t,p]
             # test where the predictor is encoded across tasks
             t,p = ttest_1samp(df['avg'], popmean = 0.)
             # correct p-value to one-sample
             t,p = correct_p(t,p)
-            avg_df.loc[r]=['avg',df['avg'],pred,r,t,p]
+            estimate=np.mean(df['avg'])
+            avg_df.loc[r]=['avg',estimate,pred,r,t,p]
 
         # correct full dataframe for multiple comparisons
         if has_task:
