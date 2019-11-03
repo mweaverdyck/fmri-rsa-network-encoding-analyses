@@ -79,12 +79,15 @@ def get_model_RDM_dict( node_mapping, meas_name_array,
         # extract column
         v = df_sub[i]
         if compress:
+            # normalize so that all measures are on the same scale
             df_sub['z'+i] = zscore(v)
         else:
             # make RDMs
             rdm_dict[i] = make_RDM(v)
     if compress:
-        v = df_sub[meas_name_array].sum(axis=1)
+        # select the normalized names
+        norm_meas_name_array = np.core.defchararray.add('z', meas_name_array)
+        v2 = df_sub[norm_meas_name_array].sum(axis=1)
         rdm_dict[out_key] = make_RDM(v)
     return(rdm_dict)
 
@@ -191,7 +194,6 @@ for sub in all_sub:
 
     print(str(datetime.now()) + ": Reading in data for subject " + sub)
     # read in 4D image
-    # TODO: read in 3D images and combine in script, rather than in wrapper
     sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
     sub_dims = sub_template.get_data().shape + (N_NODES,)
     sub_data = np.empty(sub_dims)
@@ -203,10 +205,6 @@ for sub in all_sub:
         d_avg = (d1+d2)/2
         # save to fourth dimension
         sub_data[:,:,:,n] = d_avg
-        #out_img = nib.Nifti1Image(d_avg, sub_template.affine, sub_template.header)
-        #data_fname = data_fnames % (sub, sub, TASKS[0], n)
-        #print(str(datetime.now()) + ": data_fname file = " + data_fname)
-        #sub_data = load_nii(data_fname)
 
     # find subject's node-image mapping
     node_order = get_node_mapping( sub )
