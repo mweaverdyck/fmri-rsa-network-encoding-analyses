@@ -5,7 +5,7 @@ library(dplyr)
 exclude_subs=c('sub-204')
 
 # path to confounds folder
-fmriprep_dir <- '/Users/miriam/Documents/hoffman2/bids/fmriprep'
+fmriprep_dir <- '/Users/miriam/Documents/hoffman2/bids/prep/fmriprep'
 setwd(fmriprep_dir)
 # list all directories in this folder (subject directories)
 all_dirs <- list.dirs(path = ".", full.names = FALSE, recursive = FALSE)
