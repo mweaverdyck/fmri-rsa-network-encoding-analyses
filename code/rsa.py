@@ -154,11 +154,9 @@ for sub in all_sub:
                     sub_data_node = sub_data[:,:,:,n]
                     roi_data_node = sub_data_node * roi_mask
                     roi_data_node = roi_data_node.flatten()
-                    roi_data[n:] = roi_data_node[roi_data_node != 0]
+                    roi_data[n,:] = roi_data_node[roi_data_node != 0]
                 # create neural RDM
                 roi_tri = pdist(roi_data, metric='correlation')#1 - np.corrcoef(roi_data, rowvar=False)
-                # extract lower triangle, excluding diagonal
-                roi_rdm = squareform(roi_tri)
                 # correlate with model RDMs
                 for model_name in model_rdms:
                     # correlate model and neural RDMs

@@ -91,17 +91,21 @@ def get_model_RDM_dict( node_mapping, meas_name_array,
         rdm_dict[out_key] = make_RDM(v)
     return(rdm_dict)
 
-def run_rsa_reg(neural_v, model_mat):
-    # orthogonalize
+def ortho_mat(model_mat):
     model_mat = zscore(model_mat)
     model_mat,R = np.linalg.qr(model_mat)
-    # column of ones (constant)
+    return(model_mat)
+
+def run_rsa_reg(neural_v, model_mat):
+    # orthogonalize
+    model_mat = ortho_mat(model_mat)
+    # add column of ones (constant)
     X=np.hstack((model_mat,
                  np.ones((model_mat.shape[0],1))))
     # Convert neural DSM to column vector
     neural_v=neural_v.reshape(-1,1)
     # Compute betas and constant
-    betas = np.linalg.lstsq(X, neural_v)[0]
+    betas = np.linalg.lstsq(X, neural_v, rcond=None)[0]
     # Determine model (if interested in R)
     for k in range(len(betas)-1):
         if k==0:
@@ -110,8 +114,8 @@ def run_rsa_reg(neural_v, model_mat):
             model = model + X[:,k].reshape(-1,1)*betas[k]
     # Get multiple correlation coefficient (R)
     R = pearsonr(neural_v.flatten(),model.flatten())[0]
-    out = betas[:-1] + [R]
-    return np.array(out)
+    out = np.concatenate((betas.flatten()[:-1], np.array([R])))
+    return out
 
 
 print(str(datetime.now()) + ": Begin rsa_regs.py")
@@ -134,7 +138,7 @@ data_fnames = GLM_DIR + '%s/%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.n
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
 sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_stat-'+STAT+'_corr-reg_parc-%s_val-r_pred-%s.nii.gz' #% (sub, N_PARCELS, "r" or "b", predictor_name)
+out_fname = out_dir + '%s_stat-'+STAT+'_corr-reg_parc-%s_val-beta_pred-%s.nii.gz' #% (sub, N_PARCELS, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_stat-"+STAT+"_corr-reg_parc-%s_roi_stats.csv"
 
 # set variables
@@ -226,20 +230,10 @@ for sub in all_sub:
             model_rdms_mat = [model_rdms[k]]
         else:
             model_rdms_mat = np.vstack((model_rdms_mat, model_rdms[k]))
+
     # transpose so that each column corresponds to each measure
     model_rdms_mat = np.transpose(model_rdms_mat)
 
-    # Make Mask
-    if isParc():
-        parcellation = sub_parc % (sub, sub)
-        print(str(datetime.now()) + ": Using parcellation " + parcellation)
-        parc_data = load_nii(parcellation)
-        roi_list = np.unique(parc_data)
-        # remove 0 (i.e., the background)
-        roi_list = np.delete(roi_list,0)
-        # check if number of parcels matches global variable
-        if N_PARCELS != len(roi_list):
-            print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
 
     if isSl():
         sub_data_copy = deepcopy(sub_data)
@@ -258,8 +252,22 @@ for sub in all_sub:
             print(str(datetime.now()) + ": File %s saved." % fname)
 
     elif isParc():
+        # make mask
+        parcellation = sub_parc % (sub, sub)
+        print(str(datetime.now()) + ": Using parcellation " + parcellation)
+        parc_data = load_nii(parcellation)
+        roi_list = np.unique(parc_data)
+        # remove 0 (i.e., the background)
+        roi_list = np.delete(roi_list,0)
+        # check if number of parcels matches global variable
+        if N_PARCELS != len(roi_list):
+            print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
+
+        # Run regression on each parcellation
         print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
+        # get the voxels from parcellation nii
         out_data = parcellation_template.get_data().astype(np.double)
+        # create a dictionary of nii's: one per predictor
         out_data_dict = {}
         for i,k in enumerate(model_keys):
             out_data_dict[k] = copy.deepcopy(out_data)
@@ -269,18 +277,23 @@ for sub in all_sub:
             # create mask for this ROI
             roi_mask = parc_data==parc_roi
             roi_mask = roi_mask.astype(int)
-            roi_data = np.zeros((N_NODES,sum(roi_mask.flatten())))
+            n_vox = sum(roi_mask.flatten())
+            roi_data = np.zeros((N_NODES,n_vox))
             for n in range(N_NODES):
+                # get data for specific node based on 4th dimension
                 sub_data_node = sub_data[:,:,:,n]
+                # mask the data to only include this ROI
                 roi_data_node = sub_data_node * roi_mask
+                # flatten into vector
                 roi_data_node = roi_data_node.flatten()
-                roi_data[n:] = roi_data_node[roi_data_node != 0]
-            # create neural RDM
+                # remove 0s and save to roi_data by row
+                roi_data[n,:] = roi_data_node[roi_data_node != 0]
+
             roi_tri = pdist(roi_data, metric='correlation')
             # run regression
             res = run_rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
             for i,k in enumerate(model_keys):
-                beta=res[i][0]
+                beta=res[i]
                 # save to dataframe
                 out_csv_df.append([sub, parc_roi, k, beta])
                 # update voxels
