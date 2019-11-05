@@ -57,7 +57,11 @@ def FDR( x, n=None ):
     return l
 
 parc_label = str(N_PARCELS)
-corr_labels = ['spear', 'reg']
+
+if len(sys.argv) > 1:
+    corr_labels = sys.argv[1:]
+else:
+    corr_labels = ['spear', 'reg']
 
 in_dir = RSA_DIR
 out_dir = SECOND_LEVEL_DIR
@@ -121,7 +125,7 @@ for corr_label in corr_labels:
     pred_dfs = []
     diff_dfs = []
     avg_dfs = []
-    cnames = ['test','estimate','predictor','roi','t','p']
+    cnames = ['corr','test','estimate','pred','roi','t','df','p']
     for pred in predictors:
         print('Running one-way t-tests for predictor: '+pred)
         # subselect predictor's rows
@@ -145,14 +149,18 @@ for corr_label in corr_labels:
                 t,p = ttest_rel(df[rel_col], df[nonrel_col])
                 # correct to one-sample
                 t,p = correct_p(t,p)
+                # degrees of freedom
+                t_df = len(df[rel_col]) - 1
                 diff = np.mean(df[rel_col] - df[nonrel_col])
-                diff_df.loc[r]=['diff',diff,pred,r,t,p]
+                diff_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
             # test where the predictor is encoded across tasks
             t,p = ttest_1samp(df['avg'], popmean = 0.)
             # correct p-value to one-sample
             t,p = correct_p(t,p)
+            # degrees of freedom
+            t_df = len(df['avg']) - 1
             estimate=np.mean(df['avg'])
-            avg_df.loc[r]=['avg',estimate,pred,r,t,p]
+            avg_df.loc[r]=[corr_label,'avg',estimate,pred,r,t,t_df,p]
 
         # correct full dataframe for multiple comparisons
         if has_task:
@@ -162,8 +170,11 @@ for corr_label in corr_labels:
         # save output
         fname = out_dir+'parc-'+parc_label+'_pred-'+pred+'_test-%s_stat-'+STAT+'_corr-'+corr_label
         fname_csv = fname+'.csv'
+        fname_nii = fname+'_p-%s'
         if has_task:
             diff_df.to_csv(fname_csv % ('diff'))
-            save_parcel(avg_df['FDR'], fname % ('diff'))
+            save_parcel(diff_df['FDR'], fname_nii % ('diff','FDR'))
+            save_parcel(diff_df['p'], fname_nii % ('diff','uncorrected'))
         avg_df.to_csv(fname_csv % ('avg'))
-        save_parcel(avg_df['FDR'], fname % ('avg'))
+        save_parcel(avg_df['FDR'], fname_nii % ('avg', 'FDR'))
+        save_parcel(avg_df['p'], fname_nii % ('avg','uncorrected'))
