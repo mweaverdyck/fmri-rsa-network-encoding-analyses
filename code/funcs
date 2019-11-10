@@ -147,6 +147,11 @@ get_script_from_dir() {
   SCRIPT=${SCRIPTS[$INDEX]}
 }
 
+is_step_second_level() {
+  s=$1
+  get_index $s ${STEPS[@]}
+  IS_LEVEL2=${SECOND_LEVEL_STEPS[$INDEX]}
+}
 
 # Standard log output for beginning and end of script
 # argument 1: label
