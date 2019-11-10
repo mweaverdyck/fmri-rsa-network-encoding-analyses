@@ -6,7 +6,7 @@ import os
 import shutil
 import sys
 from datetime import datetime
-import copy
+from copy import deepcopy
 import glob
 import pandas as pd
 import nibabel as nib
@@ -69,7 +69,7 @@ def get_model_RDM_dict( node_mapping, meas_name_array,
     if df is None:
         df = pd.read_csv(fname)
     # copy chicago face database data frame
-    df_sub = copy.deepcopy(df)
+    df_sub = deepcopy(df)
     # add to CFD measures data frame and sort
     df_sub['Node'] = node_order
     df_sub.sort_values(by='Node', inplace=True)
@@ -91,12 +91,27 @@ def get_model_RDM_dict( node_mapping, meas_name_array,
         rdm_dict[out_key] = make_RDM(v)
     return(rdm_dict)
 
+def get_roi_data(data, mask):
+    roi_mask = mask.astype(int)
+    n_vox = sum(roi_mask.flatten())
+    roi_data = np.zeros((N_NODES,n_vox))
+    for n in range(N_NODES):
+        # get data for specific node based on 4th dimension
+        data_node = data[:,:,:,n]
+        # mask the data to only include this ROI
+        roi_data_node = data_node * roi_mask
+        # flatten into vector
+        roi_data_node = roi_data_node.flatten()
+        # remove 0s and save to roi_data by row
+        roi_data[n,:] = roi_data_node[roi_data_node != 0]
+    return(roi_data)
+
 def ortho_mat(model_mat):
     model_mat = zscore(model_mat)
     model_mat,R = np.linalg.qr(model_mat)
     return(model_mat)
 
-def run_rsa_reg(neural_v, model_mat):
+def rsa_reg(neural_v, model_mat):
     # orthogonalize
     model_mat = ortho_mat(model_mat)
     # add column of ones (constant)
@@ -115,8 +130,31 @@ def run_rsa_reg(neural_v, model_mat):
     # Get multiple correlation coefficient (R)
     R = pearsonr(neural_v.flatten(),model.flatten())[0]
     out = np.concatenate((betas.flatten()[:-1], np.array([R])))
-    return out
+    return(out)
 
+def rsa_cor(neural_v, model_mat):
+    n_models = model_mat.shape[1]
+    out=[]
+    for m in range(n_models):
+        model_v = model_mat[:,m]
+        r, p = spearmanr(neural_v, model_v)
+        out += [r]
+    return(out)
+
+def run_rsa(roi_data, model_mat, corr='corr'):
+    # calculate roi RDM (lower triangle)
+    roi_tri = pdist(roi_data, metric='correlation')
+    # run regression
+    if corr=='corr':
+        corr_label = 'spear'
+        val_label = 'r'
+        res = rsa_cor(neural_v=roi_tri, model_mat=model_rdms_mat)
+    if corr=='reg':
+        corr_label = 'reg'
+        val_label = 'beta'
+        res = rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
+    out_dict = {'corr_label':corr_label, 'val_label': val_label,'result':res}
+    return(out_dict)
 
 print(str(datetime.now()) + ": Begin rsa_regs.py")
 
@@ -132,19 +170,18 @@ print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " +
 
 # get project directories
 in_dir = RSA_DIR + '%s/'
-out_dir = RSA_DIR + '%s/reg/' + procedure + '/' #%(sub)
+out_dir = RSA_DIR + '%s/' + procedure + '/' #%(sub)
 # filenames
 data_fnames = GLM_DIR + '%s/%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.nii'#%(sub, sub,task,node)
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
-sub_mask = in_dir + '*brain_mask*dil-*'
-out_fname = out_dir + '%s_stat-'+STAT+'_corr-reg_parc-%s_val-beta_pred-%s.nii.gz' #% (sub, N_PARCELS, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_stat-"+STAT+"_corr-reg_parc-%s_roi_stats.csv"
+sub_mask_fname = in_dir + '%s_desc-brain_mask_dil-5.nii.gz'
+out_fname = out_dir + '%s_task-avg_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, corr, N_PARCELS, "r" or "b", predictor_name)
+csv_fname = out_dir + "%s_task-avg_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
 
 # set variables
 deg_label = 'deg'
 dist_label = 'dist'
-model_keys = [deg_label, 'soc', 'phys']
 rad = 5 # radius of searchlight in voxels
 
 
@@ -182,11 +219,9 @@ print(dist_mat)
 
 # social network RDM dictionary
 sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
-deg_rdm = {deg_label: deg_tri}
 
 # dictionary of rdms by subject key
 out_csv_df = []
-colnames = ['sub','roi','predictor','beta']
 
 # run regression for each subject
 for sub in all_sub:
@@ -215,14 +250,15 @@ for sub in all_sub:
 
     # get model RDMs from CFD measures
     soc_rdms = get_model_RDM_dict(node_mapping=node_order,
-                                  meas_name_array=cfd_soc, compress=True,
+                                  meas_name_array=cfd_soc, compress=False,
                                   out_key='soc')
     phys_rdms = get_model_RDM_dict(node_mapping=node_order,
-                                   meas_name_array=cfd_phys, compress=True,
+                                   meas_name_array=cfd_phys, compress=False,
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    model_rdms = {**deg_rdm, **soc_rdms, **phys_rdms}
+    model_rdms = {**sn_rdms, **soc_rdms}
+    model_keys = model_rdms.keys()
 
     # turn dictionary into matrix
     for i,k in enumerate(model_keys):
@@ -236,22 +272,65 @@ for sub in all_sub:
 
 
     if isSl():
-        sub_data_copy = deepcopy(sub_data)
-        for measurename, measure in measure_dict.iteritems():
-            print(str(datetime.now()) + ": Creating searchlight of size " + str(rad))
-            sl = sphere_searchlight(measure, rad) #, postproc=FisherTransform)
-            print(str(datetime.now()) + ": Running searchlight.")
-            sl_map = sl(sub_data_copy)
-
-            print(str(datetime.now()) + ": Saving output images")
-            # output image
-            nimg_res = map2nifti(sl_map, imghdr = sub_data_copy.a.imghdr)
-            # save images
-            fname = out_fname % (sub, sub, 'sl', measurename)
-            nimg_res.to_filename(fname)
-            print(str(datetime.now()) + ": File %s saved." % fname)
+        ref_img = sub_template
+        # set label for filename
+        parc_label = 'sl'
+        # load subject's whole brain mask
+        sub_mask = np.round(load_nii(sub_mask_fname % (sub, sub)))
+        # setup parcellation-like image where each voxel that is the center of
+        # a sphere is assigned an integer
+        parc_data = deepcopy(sub_mask)
+        # setup out data
+        out_data = deepcopy(sub_data)*0.0
+        # setup dictionary of output images
+        out_data_dict = {}
+        # add a key for each model tested
+        for i,k in enumerate(model_keys):
+            out_data_dict[k] = deepcopy(out_data)
+        # start parcel count
+        parc_roi = 1
+        nvox = np.sum(sub_mask)
+        # go through all voxels in sub_mask
+        for index, val in np.ndenumerate(sub_mask):
+            # if this voxel has a non-zero value, analyze it
+            if val != 0:
+                perc_done = round((parc_roi / nvox) * 100, 3)
+                print(str(datetime.now()) + ': Analyzing sphere '+str(index)+' -- '+str(perc_done)+'%')
+                # get voxel's coordinates
+                x = index[0]
+                y = index[1]
+                z = index[2]
+                xmin = x-rad if x-rad >= 0 else 0
+                ymin = y-rad if y-rad >= 0 else 0
+                zmin = z-rad if z-rad >= 0 else 0
+                xmax = x+rad if x+rad < sub_mask.shape[0] else sub_mask.shape[0]
+                ymax = y+rad if y+rad < sub_mask.shape[1] else sub_mask.shape[1]
+                zmax = z+rad if z+rad < sub_mask.shape[2] else sub_mask.shape[2]
+                # create a sphere mask centered on this voxel
+                sphere = sub_mask * 0
+                sphere[xmin:xmax, ymin:ymax, zmin:zmax] = 1
+                sphere = sphere * sub_mask
+                # get the subject's data that is in this sphere
+                roi_data = get_roi_data(sub_data, sphere)
+                # run correlations comparing this sphere of data to each model
+                res_dict = run_rsa(roi_data, model_rdms_mat, corr='corr')
+                # get the resulting values
+                res = res_dict['result']
+                # for each model, save the result to its image in out_data_dict
+                for i,k in enumerate(model_keys):
+                    val = res[i]
+                    # update voxels
+                    model_data = out_data_dict[k]
+                    model_data[model_data==parc_roi] = val
+                    out_data_dict[k] = model_data
+                # save integer to parcellation just for the center voxel
+                parc_data[index] = parc_roi
+                # use next integer for next voxel
+                parc_roi += 1
 
     elif isParc():
+        ref_img = parcellation_template
+        parc_label = str(N_PARCELS)
         # make mask
         parcellation = sub_parc % (sub, sub)
         print(str(datetime.now()) + ": Using parcellation " + parcellation)
@@ -266,14 +345,15 @@ for sub in all_sub:
         # Run regression on each parcellation
         print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
         # get the voxels from parcellation nii
-        out_data = parcellation_template.get_data().astype(np.double)
+        out_data = ref_img.get_data().astype(np.double)
         # create a dictionary of nii's: one per predictor
         out_data_dict = {}
         for i,k in enumerate(model_keys):
-            out_data_dict[k] = copy.deepcopy(out_data)
+            out_data_dict[k] = deepcopy(out_data)
         # iterate through each ROI of parcellation and run regression
         for r, parc_roi in enumerate(roi_list):
-            print(str(datetime.now()) + ": Running regression on ROI %d (%d/%d)..." % (parc_roi, r+1, N_PARCELS))
+            perc_done = round(((r+1) / len(roi_list)) * 100, 3)
+            print(str(datetime.now()) + ': Analyzing ROI '+str(parc_roi)+' -- '+str(perc_done)+'%')
             # create mask for this ROI
             roi_mask = parc_data==parc_roi
             roi_mask = roi_mask.astype(int)
@@ -288,25 +368,24 @@ for sub in all_sub:
                 roi_data_node = roi_data_node.flatten()
                 # remove 0s and save to roi_data by row
                 roi_data[n,:] = roi_data_node[roi_data_node != 0]
-
-            roi_tri = pdist(roi_data, metric='correlation')
-            # run regression
-            res = run_rsa_reg(neural_v=roi_tri, model_mat=model_rdms_mat)
+            res_dict = run_rsa(roi_data, model_rdms_mat, corr='corr')
+            res = res_dict['result']
             for i,k in enumerate(model_keys):
-                beta=res[i]
+                val = res[i]
                 # save to dataframe
-                out_csv_df.append([sub, parc_roi, k, beta])
+                out_csv_df.append([sub, parc_roi, k, val])
                 # update voxels
                 model_data = out_data_dict[k]
-                model_data[model_data==parc_roi] = beta
+                model_data[model_data==parc_roi] = val
                 out_data_dict[k] = model_data
-
-
-        for k in model_keys:
-            fname = out_fname % (sub, sub, N_PARCELS, k)
-            save_nii( out_data_dict[k], parcellation_template, fname )
-
+        # write out parcellation csv
+        colnames = ['sub','roi','predictor',res_dict["val_label"]]
         out_csv_df = pd.DataFrame(out_csv_df, columns = colnames)
-        out_csv_df.to_csv(csv_fname % (sub, sub, N_PARCELS))
+        out_csv_df.to_csv(csv_fname % (sub, sub, res_dict["corr_label"], parc_label))
+
+    for k in model_keys:
+        fname = out_fname % (sub, sub, res_dict["corr_label"], parc_label, res_dict["val_label"], k)
+        save_nii( out_data_dict[k], ref_img, fname )
+
 
 print(str(datetime.now()) + ": End rsa_regs.py")
