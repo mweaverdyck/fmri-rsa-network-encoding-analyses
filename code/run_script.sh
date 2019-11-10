@@ -67,9 +67,14 @@ fi
 get_step_from_script ${scripts[0]}
 echo $STEP
 
-# get subjects
-convert_sub_args -f numid -c "${subs[@]}" $STEP
-subs=( "${SUBS[@]}" )
+is_step_second_level ${STEP}
+if [[ ${#subs} -eq 0 ]] && [[ $IS_LEVEL2 -eq 1 ]]; then
+  subs=${ALL}
+else
+  # get subjects
+  convert_sub_args -f numid -c "${subs[@]}" $STEP
+  subs=( "${SUBS[@]}" )
+fi
 
 # go through each subject and launch each script dependent on the previous
 for s in "${subs[@]}"; do
