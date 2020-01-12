@@ -285,7 +285,7 @@ def reorganize_files(subj_dir, sid, dir_list, file_extensions=('.json', '.nii.gz
                      subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR)
     :param file_extensions: a list of file extensions that need to be moved
     """
-    dir_lists = {'func': [], 'anat': [], 'fmap': [], 'sbref': []}
+    dir_lists = {'func': [], 'anat': [], 'fmap': []}
     for folder in dir_list:
         if 'bold' in folder:
             dir_lists['func'].append(folder)
@@ -293,8 +293,8 @@ def reorganize_files(subj_dir, sid, dir_list, file_extensions=('.json', '.nii.gz
             dir_lists['anat'].append(folder)
         elif any(postfix in folder for postfix in FMAP_NAME_DICT.values()):
             dir_lists['fmap'].append(folder)
-        elif 'sbref' in folder:
-            dir_lists['sbref'].append(folder)
+        elif 'sbref' in folder:          
+            dir_lists['func'].append(folder)
 
     data_path = subj_dir + PATH_BETWEEN_SUBJECT_AND_TASK_DIR + '/'
     for dir_type in dir_lists:

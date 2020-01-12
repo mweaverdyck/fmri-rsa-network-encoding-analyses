@@ -20,21 +20,30 @@ export SL='sl'
 export PROJECT_DIR=$data_dir #'/u/project/CCN/cparkins/data/encoding'
 export CODE_DIR="${PROJECT_DIR}/code"
 export BIDS_DIR="${PROJECT_DIR}/bids"
-export PREP_DIR="${BIDS_DIR}/prep"
-export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
-export SECOND_LEVEL_DIR="${BIDS_DIR}/level2"
+export DERIVATIVES_DIR="${BIDS_DIR}/derivatives"
+export PREP_DIR="${DERIVATIVES_DIR}/prep"
+export FIRST_LEVEL_DIR="${DERIVATIVES_DIR}/level1"
+export SECOND_LEVEL_DIR="${DERIVATIVES_DIR}/level2"
 export RECON_DIR="${PREP_DIR}/freesurfer"
 export FMRIPREP_DIR="${PREP_DIR}/fmriprep"
-export QA_DIR="${BIDS_DIR}/qa"
-export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
+export QA_DIR="${DERIVATIVES_DIR}/qa"
+
+# export PREP_DIR="${BIDS_DIR}/prep"
+# export FIRST_LEVEL_DIR="${BIDS_DIR}/level1"
+# export SECOND_LEVEL_DIR="${BIDS_DIR}/level2"
+# export RECON_DIR="${PREP_DIR}/freesurfer"
+# export FMRIPREP_DIR="${PREP_DIR}/fmriprep"
+# export QA_DIR="${BIDS_DIR}/qa"
+#export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
 export GLM_DIR="${FIRST_LEVEL_DIR}/glm"
 export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
-export MNI_DIR="${BIDS_DIR}/mni_icbm152_nlin_asym_09c/Schaefer"
+export MNI_DIR="/u/project/CCN/cparkins/data/atlases/MNI152NLin2009cAsym/schaefer"
+export FREESURFER_HOME="/u/project/CCN/apps/freesurfer/6.0.0"
 
 # analysis steps
 export STEPS=( "START" "RECONSTRUCTION" "FMRIPREP" "GLM" "RSA" "GROUP_LEVEL" )
 pref="${CODE_DIR}/qsub_"
-export SCRIPTS=( "n/a" "${pref}reconall.sh" "${pref}fmriprep.sh" "${pref}glm.sh" "${pref}rsa.sh" "${pref}level2ttestparc.sh" )
+export SCRIPTS=( "n/a" "${pref}reconall.sh" "${pref}fmriprep.sh" "${pref}glm.sh" "${pref}rsa.sh" "${pref}level2ttestparc_py.sh" )
 export DIRS=( "${BIDS_DIR}" "${RECON_DIR}" "${FMRIPREP_DIR}" "${GLM_DIR}" "${RSA_DIR}" "${LEVEL2_TTEST_DIR}" )
 export FIRST_LEVEL_STEPS=( 0 1 1 1 1 0 )
 export SECOND_LEVEL_STEPS=( 0 0 0 0 0 1 )
@@ -47,14 +56,14 @@ export N_NODES=10 # number of conditions
 export TR=0.75 # tr in seconds
 export N_TRS=514 # total number of TRS collected
 export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
-export N_PARCELS=400 # number of ROIs in parcellation
-export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels17Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+export N_PARCELS=200 # number of ROIs in parcellation
+export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels7Networks_dseg.nii.gz" #2mm_parc.nii.gz"
 #export MNI_MASK_DIL="${MNI_DIR}/2mm_brainmask_dil-5.nii.gz"
 export SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$PARC
+export PROCEDURE=$ALL
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
@@ -220,7 +229,7 @@ setup_modules() {
 		export PATH=${HOME}/.local/bin:$PATH
 		# load each module
 		for arg in "$@"; do module load $arg; done
-		export PATH=${HOME}/.local/bin:$PATH
+#		export PATH=${HOME}/.local/bin:$PATH
 	fi
 }
 
