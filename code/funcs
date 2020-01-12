@@ -35,9 +35,10 @@ export QA_DIR="${DERIVATIVES_DIR}/qa"
 # export FMRIPREP_DIR="${PREP_DIR}/fmriprep"
 # export QA_DIR="${BIDS_DIR}/qa"
 #export DERIVATIVES_DIR="${FIRST_LEVEL_DIR}/derivatives"
+export DERIVS_DIR="${FIRST_LEVEL_DIR}/derivs"
 export GLM_DIR="${FIRST_LEVEL_DIR}/glm"
 export RSA_DIR="${FIRST_LEVEL_DIR}/rsa"
-export MNI_DIR="/u/project/CCN/cparkins/data/atlases/MNI152NLin2009cAsym/schaefer"
+export MNI_DIR="/u/project/CCN/cparkins/data/atlases/MNI152NLin2009cAsym"
 export FREESURFER_HOME="/u/project/CCN/apps/freesurfer/6.0.0"
 
 # analysis steps
@@ -57,13 +58,15 @@ export TR=0.75 # tr in seconds
 export N_TRS=514 # total number of TRS collected
 export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
 export N_PARCELS=200 # number of ROIs in parcellation
-export MNI_PARCELLATION="${MNI_DIR}/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels7Networks_dseg.nii.gz" #2mm_parc.nii.gz"
-#export MNI_MASK_DIL="${MNI_DIR}/2mm_brainmask_dil-5.nii.gz"
+export N_NETWORKS=7
+export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
 export SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
+export SL_RADIUS=5
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$ALL
+export PROCEDURE=$PARC
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
@@ -572,6 +575,6 @@ function begin_script {
 }
 
 ### packages to install:
-# setup_modules python/3.6.1 fmriprep
+# setup_modules $python_v
 # pip3 install --user nipype nistats pandas pybids
-# pip install --user pymvpa2
+# pip3 install --upgrade --user --no-deps statsmodels
