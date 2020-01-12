@@ -4,7 +4,7 @@
 #$ -o joblogs/joblog.rsacorr.$JOB_ID.log
 #$ -j y
 #$ -pe shared 2
-#$ -l h_rt=3:59:00,h_data=8G
+#$ -l h_rt=23:59:00,h_data=8G
 # Notify when
 #$ -m ae
 #
@@ -39,7 +39,7 @@ for procedure in "${PROCEDURES[@]}"; do
 
   # Run RSA
   write_log $log_args "Running RSA"
-  python3 rsa_all.py ${procedure} ${subs[@]} | tee -a $log_file
+  python3 rsa_all.py 'avg' ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA"
 
 done
