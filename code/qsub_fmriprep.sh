@@ -27,16 +27,11 @@ log_args="${LOG_ARGS}"
 subs=( "${SUBS[@]}" )
 
 # run fmriprep
-fmriprep ${BIDS_DIR} ${PREP_DIR} --work-dir ${work_dir} --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-spaces ${SPACES} --nthreads 8 --omp-nthreads 8 | tee -a ${log_file}
-
-# BIDS_DIR='/u/project/CCN/cparkins/data/encoding/bids'
-# out_dir='/u/project/CCN/cparkins/data/encoding/bids/prep/fmriprep'
-# work_dir="${SCRATCH}/fmriprep_work"
-# fmriprep ${BIDS_DIR} "${out_dir}/.." --work-dir ${work_dir} --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-spaces T1w template --nthreads 8 --omp-nthreads 8 | tee -a ${log_file}
+fmriprep ${BIDS_DIR} ${PREP_DIR} --work-dir ${work_dir} --ignore slicetiming --fs-license-file $FREESURFER_HOME/.license participant --participant-label "${SUBS[@]}" --output-spaces ${SPACES[@]} fsaverage --nthreads 8 --omp-nthreads 8 | tee -a ${log_file}
 
 # run motion QA
 if [[ $1 == 'all' ]]; then subs='all'; fi
-python3 qa_motion.py ${subs[@]}
+python3 qa_motion.py ${SUBS[@]}
 
 # log end
 log_end $log_args
