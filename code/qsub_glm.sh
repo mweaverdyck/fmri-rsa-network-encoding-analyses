@@ -3,8 +3,7 @@
 # error = Merged with joblog
 #$ -o joblogs/joblog.glm.$JOB_ID.log
 #$ -j y
-#$ -pe shared 4
-#$ -l h_rt=8:00:00,h_data=14G
+#$ -l h_data=14G,h_rt=4:00:00,exclusive
 # Notify when
 #$ -m ae
 #
@@ -17,7 +16,7 @@ source funcs
 setup_modules $python_v
 
 label='GLM'
-in_dir=${DERIVATIVES_DIR}
+in_dir=${DERIVS_DIR}
 out_dir=${GLM_DIR}
 
 begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
@@ -40,7 +39,7 @@ write_log $log_args "Finished removing TRs"
 
 for s in "${subs[@]}"; do
     write_log $log_args "Running Nistats GLM"
-    python3 glm.py "${s}" | tee -a $log_file
+    python3 glm_by-trial.py "${s}" | tee -a $log_file
     write_log $log_args "Finished GLM"
 
     deriv_dir="${in_dir}/derivatives_$s"

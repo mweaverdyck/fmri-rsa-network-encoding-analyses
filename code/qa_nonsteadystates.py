@@ -22,7 +22,7 @@ if len(subs) == 0:
     subs='all'
 
 in_dir = FMRIPREP_DIR
-out_dir = DERIVATIVES_DIR
+out_dir = DERIVS_DIR
 
 # list all directories in this folder (subject directories)
 fnames = os.path.join(FMRIPREP_DIR,

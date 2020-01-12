@@ -16,7 +16,7 @@ setup_modules $fsl_v R
 
 label='NONSTEADYSTATES'
 in_dir=${FMRIPREP_DIR}
-out_dir="${DERIVATIVES_DIR}"
+out_dir="${DERIVS_DIR}"
 
 begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid $@
 log_args="$LOG_ARGS"

@@ -29,7 +29,7 @@ except RuntimeError:
 
 derivatives_prefix = DERIVS_DIR + 'derivatives_'
 space_label = SPACE
-tasks = ['friend','number']
+tasks = TASKS
 nodes = range(N_NODES)
 
 out_dir = GLM_DIR
@@ -42,9 +42,6 @@ if not os.path.exists(out_dir):
 # subj = 'sub-212'
 # t = 0
 # task_label = tasks[t]
-# space_label = "T1w"
-# N_NODES = 10
-
 
 col_regressors_fixed = [
 'a_comp_cor_00', 'a_comp_cor_01',
@@ -68,6 +65,7 @@ for subj in subject_ids:
     derivatives_dir_sub = derivatives_prefix + subj + '/'
     if not os.path.exists(derivatives_dir_sub):
         os.makedirs(derivatives_dir_sub)
+
     if not os.path.exists(derivatives_dir_sub+subj):
         # move derivatives to derivatives folder
         print("moving " +DERIVS_DIR+subj+' to '+derivatives_dir_sub)
@@ -97,9 +95,8 @@ for subj in subject_ids:
             model.mask=False
             # get subject label
             subnum = model.subject_label
-            subid = 'sub-' + subnum
+            subid = convert2subid(subnum)
             print("Analyzing subject "+ subid)
-
             # write subject's output directory
             write_sub_dir = os.path.join(out_dir, subid)
             if not os.path.exists(write_sub_dir):
@@ -108,14 +105,23 @@ for subj in subject_ids:
             # select only relevant rows and columns from events files
             print("Setting up events file")
             for r, e in enumerate(events):
-                events[r] = e[e['trial_type']=='noncatch']
-                events[r] = events[r].filter(['node','onset_corrected','duration'])
-                events[r] = events[r].rename(index=str,
+                df = e[e['trial_type']=='noncatch']
+                df = df.reset_index()
+                #df.insert(0, 'index', df['node'])
+                #df = df.set_index('index')
+                df.insert(0, 'trial_num', 0)
+                # go through each row and add trial number for that node
+                trial_counts = np.zeros(N_NODES, 'int')
+                for i in range(len(df)):
+                    node = df.loc[i,'node']
+                    df.loc[i,'trial_num'] = trial_counts[node]
+                    trial_counts[node] += 1
+                df.insert(0, 'node_trial', 'node-0'+df['node'].astype(str)+'_trial-0'+df['trial_num'].astype(str))
+                df = df.filter(['node_trial','onset_corrected','duration'])
+                events[r] = df.rename(index=str,
                 #    columns={"trial_type":"noncatch", "node":"trial_type"})
-                    columns={"node":"trial_type", "onset_corrected":"onset"})
+                    columns={"node_trial":"trial_type", "onset_corrected":"onset"})
                 print(events[r].columns)
-                #events[r] = events[r].filter(['trial_type','onset_corrected','duration'])
-            	#events[r] = events[r].rename(columns = {"onset_corrected": "onset"})
 
             # subselect regressors from each run's counfounds file
             print("Subselecting relevant regressors")
@@ -157,48 +163,67 @@ for subj in subject_ids:
             model.fit(imgs, events, confounds_copy)
 
             # save design matrices for each run
-            print("Saving design matrices")
+            print("Saving design matrices and contrasts")
             for r, mat in enumerate(model.design_matrices_):
                 design_matrix = mat
                 plot_design_matrix(design_matrix)
                 #plt.show()
-                filename=write_sub_dir+'/'+subid+'_task-'+task_label+'_run-0'+str(r+1)+'_designmat.png'
+                filename=write_sub_dir+'/'+subid+'_task-'+task_label+'_run-0'+str(r+1)+'_by-trial_designmat.png'
                 plt.savefig(filename)
                 print('Run '+str(r)+' design matrix image saved: '+filename)
+                # set contrasts
+                contrast_matrix_trial = np.eye(design_matrix.shape[1])
+                contrast_empty = [np.zeros(design_matrix.shape[1])] * len(events)
+                for ind, contrast_id in enumerate(design_matrix.columns):
+                    contrast_val = copy.deepcopy(contrast_empty)
+                    contrast_val[r] = copy.deepcopy(contrast_matrix_trial[ind])
+                    # compute the per-contrast t-map
+                    if ('node' in contrast_id.split('_')[0]) or ('trial' in contrast_id.split('_')[0]):
+                        #z_map = model.compute_contrast(
+                        #    contrast_val, output_type='z_score')
+                        t_map = model.compute_contrast(contrast_val
+                                        , stat_type='t'
+                                        , output_type='stat'
+                                        )
+                        # save t map
+                        #trial_label = contrast_id.split('_')[1]
+                        print(contrast_id, contrast_val)
+                        run_label = r + 1
+                        filename = '%s_task-%s_space-%s_stat-t_%s_run-%02d_by-trial.nii' % (subid, task_label, space_label, contrast_id, run_label)
+                        t_image_path = os.path.join(write_sub_dir, filename)
+                        nib.save(t_map, t_image_path)
+                        print('File ' + write_sub_dir + '/' + filename + ' saved.')
+                        # save by-run
+                        node_label = contrast_id.split('_')[0]
+                        # find indices of all conditions with this node
+                        indices = [i for i, c in enumerate(design_matrix.columns) if node_label in c]
+                        if ind == min(indices):
+                            cond = copy.deepcopy(contrast_matrix_trial[ind])
+                            cond[indices] = 1
+                            contrast_val[r] = cond
+                            t_map = model.compute_contrast(contrast_val
+                                            , stat_type='t'
+                                            , output_type='stat'
+                                            )
+                            # save t map
+                            print(node_label, "run-"+str(run_label), contrast_val)
+                            filename = '%s_task-%s_space-%s_stat-t_%s_run-%02d_by-run.nii' % (subid, task_label, space_label, node_label, run_label)
+                            t_image_path = os.path.join(write_sub_dir, filename)
+                            nib.save(t_map, t_image_path)
+                            print('File ' + write_sub_dir + '/' + filename + ' saved.')
+                            # save by-node if first run
+                            if r == 0:
+                                t_map = model.compute_contrast(cond
+                                                , stat_type='t'
+                                                , output_type='stat'
+                                                )
+                                # save t map
+                                print(node_label, cond)
+                                filename = '%s_task-%s_space-%s_stat-t_%s_by-node.nii' % (subid, task_label, space_label, node_label)
+                                t_image_path = os.path.join(write_sub_dir, filename)
+                                nib.save(t_map, t_image_path)
+                                print('File ' + write_sub_dir + '/' + filename + ' saved.')
 
-            # setup contrast vectors (all zeros)
-            n_columns = design_matrix.shape[1]
-            con_empty = np.zeros(n_columns)
-
-            # compute each contrast of interest (one per node)
-            print("Saving each node's contrast files")
-            for node_label in nodes:
-                # create contrast vector
-                con = copy.deepcopy(con_empty)
-                con[node_label] = 1
-                # # calculate z map
-                # z_map = model.compute_contrast(
-                #                 contrast_def=con
-                #                 , stat_type='t'
-                #                 , output_type='z_score'
-                #                 )
-                # # save z map
-                # filename = '%s_task-%s_space-%s_stat-z_node-0%s.nii' % (subid,task_label,space_label,str(node_label))
-                # z_image_path = os.path.join(write_sub_dir, filename)
-                # nib.save(z_map, z_image_path)
-                # print('File ' + write_sub_dir + '/' + filename + ' saved.')
-
-                # for output options, see
-                # https://nistats.github.io/modules/generated/nistats.first_level_model.FirstLevelModel.html
-                t_map = model.compute_contrast(con
-                                , stat_type='t'
-                                , output_type='stat'
-                                )
-                # save t map
-                filename = '%s_task-%s_space-%s_stat-t_node-0%s.nii' % (subid, task_label, space_label, str(node_label))
-                t_image_path = os.path.join(write_sub_dir, filename)
-                nib.save(t_map, t_image_path)
-                print('File ' + write_sub_dir + '/' + filename + ' saved.')
 
 
     # move subjects' folders back to fmriprep
