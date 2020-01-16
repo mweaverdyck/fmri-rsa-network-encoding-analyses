@@ -36,31 +36,33 @@ out_dir = GLM_DIR
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-# #single subject
-# BIDS_DIR = os.environ['BIDS_DIR']+'/bids/'
-# DERIVATIVES_DIR = BIDS_DIR+'fmriprep/'
-# subj = 'sub-212'
-# t = 0
-# task_label = tasks[t]
-# space_label = "T1w"
-# N_NODES = 10
+# ----------------------- fmriprep 1.2.0 regressors ----------------------------
+# col_regressors_fixed = [
+# 'a_comp_cor_00', 'a_comp_cor_01',
+# 'a_comp_cor_02', 'a_comp_cor_03',
+# 'a_comp_cor_04', 'a_comp_cor_05',
+# 't_comp_cor_00', 't_comp_cor_01',
+# 't_comp_cor_02', 't_comp_cor_03',
+# 't_comp_cor_04', 't_comp_cor_05',
+# 'trans_x','trans_y','trans_z',
+# 'rot_x','rot_y','rot_z']
+# # include all columns that start with these prefixes
+# col_regressors_prefs_all = []
+# # across all 4 runs of the task, include the minimum number of columns that start with these prefixes
+# col_regressors_prefs_min = ['cosine', 'non_steady_state_outlier']
+# # delete TRs based on these columns
 
-
+# ----------------------- fmriprep 1.4.0 regressors ----------------------------
 col_regressors_fixed = [
-'a_comp_cor_00', 'a_comp_cor_01',
-'a_comp_cor_02', 'a_comp_cor_03',
-'a_comp_cor_04', 'a_comp_cor_05',
-'t_comp_cor_00', 't_comp_cor_01',
-'t_comp_cor_02', 't_comp_cor_03',
-'t_comp_cor_04', 't_comp_cor_05',
+'csf', 'white_matter', 'global_signal',
 'trans_x','trans_y','trans_z',
 'rot_x','rot_y','rot_z']
-#col_regressors_prefs = ['cosine', 'non_steady_stat_outlier']
 # include all columns that start with these prefixes
-col_regressors_prefs_all = []
+col_regressors_prefs_all = col_regressors_fixed
 # across all 4 runs of the task, include the minimum number of columns that start with these prefixes
-col_regressors_prefs_min = ['cosine', 'non_steady_state_outlier']
+col_regressors_prefs_min = ['non_steady_state_outlier']
 # delete TRs based on these columns
+
 
 
 for subj in subject_ids:
@@ -176,18 +178,6 @@ for subj in subject_ids:
                 # create contrast vector
                 con = copy.deepcopy(con_empty)
                 con[node_label] = 1
-                # # calculate z map
-                # z_map = model.compute_contrast(
-                #                 contrast_def=con
-                #                 , stat_type='t'
-                #                 , output_type='z_score'
-                #                 )
-                # # save z map
-                # filename = '%s_task-%s_space-%s_stat-z_node-0%s.nii' % (subid,task_label,space_label,str(node_label))
-                # z_image_path = os.path.join(write_sub_dir, filename)
-                # nib.save(z_map, z_image_path)
-                # print('File ' + write_sub_dir + '/' + filename + ' saved.')
-
                 # for output options, see
                 # https://nistats.github.io/modules/generated/nistats.first_level_model.FirstLevelModel.html
                 t_map = model.compute_contrast(con
