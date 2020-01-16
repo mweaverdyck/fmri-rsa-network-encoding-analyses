@@ -39,7 +39,7 @@ write_log $log_args "Finished removing TRs"
 
 for s in "${subs[@]}"; do
     write_log $log_args "Running Nistats GLM"
-    python3 glm_by-trial.py "${s}" | tee -a $log_file
+    python3 glm.py "${s}" | tee -a $log_file
     write_log $log_args "Finished GLM"
 
     deriv_dir="${in_dir}/derivatives_$s"

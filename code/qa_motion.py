@@ -21,14 +21,19 @@ def get_term(fname, key):
             return s.split('-')[1]
     return -1
 
-print(str(datetime.now()) + ": Begin qa_motion.py")
 
 # read in arguments
 # subjects
 subs = sys.argv[1:]
 if len(subs) == 0:
     subs='all'
+else:
+    for i,s in enumerate(subs):
+        subs[i] = convert2subid(s)
 subs_str = ""
+
+print(str(datetime.now()) + ": Begin qa_motion.py on subjects: ")
+print(subs)
 
 in_dir = FMRIPREP_DIR
 out_dir = FMRIPREP_DIR
@@ -46,11 +51,11 @@ fail_subs = []
 # combine all subjects' confounds tsv files
 for d, dir in enumerate(all_fmriprep_dirs):
     sub = os.path.basename(dir)
-    print("Analyzing " + sub)
     if sub in subs or subs == "all":
         if sub in EXCLUDE_SUBS:
             print('Excluding subject '+ sub)
         else:
+            print("Analyzing " + sub)
             subs_str += sub + "_"
             sub_dir = os.path.join(in_dir,sub,'func')
             # find all tsv files for this subject
@@ -115,6 +120,8 @@ for d, dir in enumerate(all_fmriprep_dirs):
         else:
             full_df = deepcopy(sub_df)
 # save output
+if subs=="all":
+    subs_str=""
 fname = os.path.join(out_dir, subs_str + "motion_counts.csv")
 full_df.to_csv(fname)
 print("Saved " + fname)
