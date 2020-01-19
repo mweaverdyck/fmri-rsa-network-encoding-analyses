@@ -53,12 +53,15 @@ if not os.path.exists(out_dir):
 # # delete TRs based on these columns
 
 # ----------------------- fmriprep 1.4.0 regressors ----------------------------
-col_regressors_fixed = [
+col_regressors_fixed = []
+#'csf', 'white_matter', 'global_signal',
+#'trans_x','trans_y','trans_z',
+#'rot_x','rot_y','rot_z']
+# include all columns that start with these prefixes
+col_regressors_prefs_all = [
 'csf', 'white_matter', 'global_signal',
 'trans_x','trans_y','trans_z',
 'rot_x','rot_y','rot_z']
-# include all columns that start with these prefixes
-col_regressors_prefs_all = col_regressors_fixed
 # across all 4 runs of the task, include the minimum number of columns that start with these prefixes
 col_regressors_prefs_min = ['non_steady_state_outlier']
 # delete TRs based on these columns

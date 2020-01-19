@@ -57,7 +57,7 @@ for dir in all_fmriprep_dirs:
           out_fname_components['rmtr'] = str(N_TRS_DEL)
           if 'extra' in out_fname_components:
               out_fname_components.move_to_end('extra', last=True)
-          out_fname = os.path.join(out_dir,
+          out_fname = os.path.join(out_dir, sub, 'func',
                                     make_bids_str(out_fname_components) +
                                     '.' + confound_basef.split('.')[-1])
           confound_df_out.to_csv(out_fname, sep='\t')
@@ -120,7 +120,7 @@ for dir in all_fmriprep_dirs:
 
         # # append subject's dataframe to all_dfs
         # all_dfs = pd.concat([all_dfs, sub_df])
-        
+
 # fname=os.path.join(FMRIPREP_DIR,'nonsteady_outliers.tsv')
 # write_tsv(all_dfs, path=fname)
 # print(paste(fname,"saved"))
