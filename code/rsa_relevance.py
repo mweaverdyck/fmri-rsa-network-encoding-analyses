@@ -20,7 +20,7 @@ for arg in sys.argv[1:]:
         all_sub += [arg]
 
 # overwrite previous csv files? If False, will read in csv and append
-overwrite = False
+overwrite = True
 
 # print variables to log file
 print(str(datetime.now()) + ": Project directory = " + PROJECT_DIR)
@@ -75,12 +75,12 @@ for s in all_sub:
     parc_label = SL if isSl(procedure) else str(N_PARCELS)
 
     # calculate difference images
-    data_rel = out_data_dict['number'][deg_label] - out_data_dict['friend'][deg_label]
+    data_rel = res_dict['number'][deg_label] - res_dict['friend'][deg_label]
     fname = out_fname % (sub, corr_label, sub, 'rel', corr_label, parc_label, val_label, deg_label)
-    save_nii( res_dict[deg_label], ref_img, fname )
+    save_nii( data_rel, res_dict['ref_img'], fname )
 
-    data_rel = out_data_dict['friend'][dist_label] - out_data_dict['number'][dist_label]
+    data_rel = res_dict['friend'][dist_label] - res_dict['number'][dist_label]
     fname = out_fname % (sub, corr_label, sub, 'rel', corr_label, parc_label, val_label, dist_label)
-    save_nii( res_dict[dist_label], ref_img, fname )
+    save_nii( data_rel, res_dict['ref_img'], fname )
 
 print(str(datetime.now()) + ": End rsa_relevance.py")

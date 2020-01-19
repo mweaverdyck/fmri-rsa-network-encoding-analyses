@@ -366,6 +366,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
             save_nii( out_data_dict[k], ref_img, fname )
         # add to output array
         out_tasks[task] = out_data_dict
+        out_tasks['ref_img'] = ref_img
     return(out_tasks)
 
 
