@@ -9,6 +9,7 @@ import csv
 import nibabel as nib
 import numpy as np
 from datetime import datetime
+from collections import OrderedDict
 
 # keywords
 ALL = os.environ['ALL']
@@ -76,6 +77,29 @@ def get_bids_att(str, label):
         if label == a.split('-')[0]:
             return a.split('-')[1]
     return None
+
+def get_all_bids_atts(fname):
+    fname = fname.split('/')[-1]
+    fname = fname.split('.')[0]
+    arr = fname.split('_')
+    arr_dict = OrderedDict()
+    for a in arr:
+        a2 = a.split('-')
+        if len(a2) == 2:
+            arr_dict[a2[0]] = a2[1]
+        else:
+            arr_dict['extra'] = a2[0]
+    return arr_dict
+
+def make_bids_str(odict):
+    out_str = ''
+    for i,a in enumerate(odict):
+        out_str += '_' if i != 0 else ''
+        if a == 'extra':
+            out_str += odict[a]
+        else:
+            out_str += a + '-' + odict[a]
+    return out_str
 
 def isParc(procedure):
     return(procedure == PARC)

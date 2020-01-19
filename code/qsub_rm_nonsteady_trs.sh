@@ -12,7 +12,7 @@
 #set -e
 
 source funcs
-setup_modules $fsl_v R
+setup_modules $fsl_v $python_v #R
 
 label='NONSTEADYSTATES'
 in_dir=${FMRIPREP_DIR}
@@ -50,5 +50,6 @@ done
 
 write_log $log_args "Updating events files..."
 # calculate new onset times and count number of nonsteady outliers
-Rscript --vanilla --verbose qa_nonsteadystates.R ${subs[@]} | tee -a $log_file
+#Rscript --vanilla --verbose qa_nonsteadystates.R ${subs[@]} | tee -a $log_file
+python3 qa_nonsteadystates.py ${subs[@]} | tee -a $log_file
 log_end $log_args
