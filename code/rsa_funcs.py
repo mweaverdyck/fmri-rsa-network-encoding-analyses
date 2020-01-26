@@ -30,8 +30,8 @@ if SPACE == 'T1w':
 else:
     sub_parc = MNI_PARCELLATION
 # output file names
-out_fname = out_dir + '%s_task-%s_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_task-%s_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
+out_fname = out_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
+csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
 
 
 
@@ -158,7 +158,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
     # get labels
     corr_label = 'spear' if corr=='corr' else 'reg'
     val_label = 'r' if corr=='corr' else 'beta'
-    parc_label = SL if isSl(procedure) else str(N_PARCELS)
+    parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
     # make output directories if they don't exist
     if not os.path.exists(out_dir % (sub, corr_label)):
         os.makedirs(out_dir % (sub, corr_label))
@@ -386,7 +386,7 @@ def run_second_order_rsa(subs, model_rdms, procedure, corr, tasks=['avg'], overw
     # get labels
     corr_label = 'spear' if corr=='corr' else 'reg'
     val_label = 'r' if corr=='corr' else 'beta'
-    parc_label = SL if isSl(procedure) else str(N_PARCELS)
+    parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
 
 
     out_dir = SECOND_LEVEL_DIR + '%s/' #%(corr_label)

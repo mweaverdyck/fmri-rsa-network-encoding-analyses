@@ -72,7 +72,7 @@ for s in all_sub:
     # get labels
     corr_label = 'spear' if corr=='corr' else 'reg'
     val_label = 'r' if corr=='corr' else 'beta'
-    parc_label = SL if isSl(procedure) else str(N_PARCELS)
+    parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
 
     # calculate difference images
     data_rel = res_dict['number'][deg_label] - res_dict['friend'][deg_label]
