@@ -43,7 +43,7 @@ for sub in ${subs[@]}; do
   else
     echo "Dilating ${sub_mask_fname} with ${dil} kernel --> ${out_mask}"
     fslmaths ${sub_mask} -kernel gauss ${dil} -dilF ${out_mask}
-    ref_pattern="${out_sub_dir}/*node-4D*"
+    ref_pattern="${GLM_DIR}/${sub}/*node-*.nii*"
     ref_imgs=( $ref_pattern )
     ref_img=${ref_imgs[0]}
     echo "Resampling mask to reference image: ${ref_img}"
