@@ -93,6 +93,8 @@ def get_all_bids_atts(fname):
 
 def make_bids_str(odict):
     out_str = ''
+    if 'extra' in odict.keys():
+        odict.move_to_end('extra')
     for i,a in enumerate(odict):
         out_str += '_' if i != 0 else ''
         if a == 'extra':
