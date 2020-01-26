@@ -99,15 +99,16 @@ alias get_outline='echo "To run full analysis:
 
     4. # first level analyses (from server)
        . run_script full ???
-       . run_script reconall fmriprep_norecon glm rsacorr ???
+       . run_script reconall fmriprep glm rsaall rsa_sl ???
 
     5. # Quality Assurance tests (from mount)
        R qa_motion.R
        . run_script mriqc ???
-       [R qa_rm_nonsteadystates.R] (automatically runs with glm)
+       [python3 qa_rm_nonsteadystates.py] (automatically runs with glm)
 
-    6. # second level analyses (from mount)
-       Rscript --vanilla --verbose level2_ttest_parc.R
+    6. # second level analyses (from server)
+       qsub qsub_level2sl_py.sh
+       qsub qsub_level2ttestparc_py.sh
 "'
 
 get_index() {
@@ -578,3 +579,4 @@ function begin_script {
 # setup_modules $python_v
 # pip3 install --user nipype nistats pandas pybids
 # pip3 install --upgrade --user --no-deps statsmodels
+# python3 -m pip install --user --no-use-pep517 brainiak
