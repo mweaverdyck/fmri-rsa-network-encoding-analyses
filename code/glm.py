@@ -36,7 +36,7 @@ out_dir = GLM_DIR
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
-# ----------------------- fmriprep 1.2.0 regressors ----------------------------
+# ## ----------------------- fmriprep 1.2.0 regressors ----------------------------
 # col_regressors_fixed = [
 # 'a_comp_cor_00', 'a_comp_cor_01',
 # 'a_comp_cor_02', 'a_comp_cor_03',
@@ -54,9 +54,6 @@ if not os.path.exists(out_dir):
 
 # ----------------------- fmriprep 1.4.0 regressors ----------------------------
 col_regressors_fixed = []
-#'csf', 'white_matter', 'global_signal',
-#'trans_x','trans_y','trans_z',
-#'rot_x','rot_y','rot_z']
 # include all columns that start with these prefixes
 col_regressors_prefs_all = [
 'csf', 'white_matter', 'global_signal',
