@@ -2,6 +2,7 @@
 # runs regression between neural data and various model predictors
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import spearmanr, pearsonr, norm, zscore
+from scipy.ndimage.morphology import binary_dilation
 import os
 import shutil
 import sys
