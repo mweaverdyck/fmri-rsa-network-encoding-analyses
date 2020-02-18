@@ -11,6 +11,7 @@ import nibabel as nib
 import numpy as np
 from scipy.stats import norm, ttest_rel, ttest_ind, ttest_1samp
 from statsmodels.stats.multitest import multipletests
+from scipy.ndimage.morphology import binary_dilation
 from nilearn.image import math_img
 from nilearn.input_data import NiftiMasker
 from nistats import second_level_model
@@ -19,30 +20,8 @@ from nilearn.plotting import plot_glass_brain
 #from nistats.second_level_model import non_parametric_inference
 from funcs import *
 
-# def correct_p (t,p):
-#     if t < 0:
-#         # if negative t-value, then relevant context was lower than non-relavant
-#         p = 1.
-#     else:
-#         p = p/2
-#     return(t,p)
-#
-# def FDR( x, n=None ):
-#     """
-#     Assumes a list or numpy array x which contains p-values for multiple tests
-#     Copied from p.adjust function from R
-#     """
-#     if n is None:
-#         n = len(x)
-#     o = [ i[0] for i in sorted(enumerate(x), key=lambda v:v[1],reverse=True) ]
-#     ro = [ i[0] for i in sorted(enumerate(o), key=lambda v:v[1]) ]
-#     q = sum([1.0/i for i in range(1,n+1)])
-#     l = [ q*len(x)/i*x[j] for i,j in zip(reversed(range(1,n+1)),o) ]
-#     l = [ l[k] if l[k] < 1.0 else 1.0 for k in ro ]
-#     return l
-
-def run_sig_tests(data_fnames):
-    second_level_model = SecondLevelModel(smoothing_fwhm=5.0)
+def run_sig_tests(data_fnames, mask=None):
+    second_level_model = SecondLevelModel(smoothing_fwhm=5.0, mask=mask)
     if isinstance(data_fnames,dict):
         data_fnames_num = sorted(data_fnames['number'])
         data_fnames_fri = sorted(data_fnames['friend'])
@@ -93,7 +72,7 @@ def run_sig_tests(data_fnames):
     display = plotting.plot_glass_brain(
         z_map, threshold=threshold, colorbar=True, plot_abs=False,
         output_file=out_fname,
-        title='z map (unc p<0.001')
+        title='z map')
     # save p map
     p_val = second_level_model.compute_contrast(con_name, output_type='p_value')
     fname_atts['val2'] = "p"
@@ -118,6 +97,15 @@ def run_sig_tests(data_fnames):
     fname_atts['correction'] = "fdr"
     out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
     save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
+    pfdr = deepcopy(1-fdr_val)
+    pfdr[fdr_val==0.] = 0.
+    pfdr = pfdr.reshape(p_val.shape)
+    pfdr_map = nib.Nifti1Image(pfdr, p_val.affine, p_val.header)
+    threshold = .95
+    display = plotting.plot_glass_brain(
+        pfdr_map, threshold=threshold, colorbar=True, plot_abs=False,
+        output_file=out_fname,
+        title='p map FDR-corrected')
     # neg_log_pvals_permuted_ols_unmasked = \
     #                     non_parametric_inference(second_level_input,
     #                                  design_matrix=design_matrix,
@@ -129,6 +117,7 @@ def run_sig_tests(data_fnames):
     # out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
     # save_nii(neg_log_pvals_permuted_ols_unmasked, ref_img, out_fname)
 
+parc_label = 'sl' + SL_RADIUS
 corrs=['spear', 'reg']
 corr_labels = []
 tasks=[]
@@ -152,6 +141,13 @@ for t in tasks:
 
 out_dir = SECOND_LEVEL_DIR
 
+# dilate gray matter mask
+tmp = nib.load(MNI_GM_MASK)
+gm_mask = load_nii(MNI_GM_MASK)
+gm_mask = np.where(gm_mask > 0.5, 1., 0.)
+gm_mask_dil = binary_dilation(gm_mask, iterations=int(SL_RADIUS)).astype(gm_mask.dtype)
+gm_mask_dil_img = nib.Nifti1Image(gm_mask_dil, tmp.affine, tmp.header)
+
 for corr_label in corr_labels:
     print('starting correlation '+corr_label)
     in_dir = os.path.join(RSA_DIR,'*',corr_label)
@@ -162,15 +158,15 @@ for corr_label in corr_labels:
         data_tasks = {}
         for task in tasks:
             print("starting task "+task)
-            fnames = os.path.join(in_dir, '*task-'+task+'*space-'+SPACE+'*pred-'+pred+'*.nii*')
+            fnames = os.path.join(in_dir, '*task-'+task+'*space-'+SPACE+'*_parc-'+parc_label+'_*val-r_*pred-'+pred+'*.nii*')
             print(fnames)
             data_fnames = glob.glob(fnames)
             if len(data_fnames) != 0:
                 if task in TASKS:
                     data_tasks[task] = data_fnames
                     print(data_tasks)
-                run_sig_tests(data_fnames)
+                run_sig_tests(data_fnames, mask = gm_mask_dil_img)
         if pred in ['deg', 'dist'] and 'number' in data_tasks.keys() and 'friend' in data_tasks.keys():
-            run_sig_tests(data_tasks)
+            run_sig_tests(data_tasks, mask = gm_mask_dil_img)
 
 print(str(datetime.now()) + ": End level2_rsa_sl.py")

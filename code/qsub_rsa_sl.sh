@@ -4,7 +4,7 @@
 #$ -o joblogs/joblog.rsasl.$JOB_ID.log
 #$ -j y
 #$ -pe shared 2
-#$ -l h_rt=1:59:00,h_data=8G
+#$ -l h_rt=11:59:00,h_data=8G
 # Notify when
 #$ -m ae
 #

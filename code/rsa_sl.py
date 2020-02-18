@@ -10,7 +10,7 @@ if not sys.warnoptions:
 #import os
 import time
 from nilearn import plotting
-from brainiak.searchlight.searchlight import Searchlight
+from brainiak.searchlight.searchlight import Searchlight, Ball
 from brainiak.fcma.preprocessing import prepare_searchlight_mvpa_data
 from brainiak import io
 from pathlib import Path
@@ -42,6 +42,7 @@ print(str(datetime.now()) + ": Project directory = " + PROJECT_DIR)
 print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " + str(all_sub))
 
 # set variables
+use_mask = False
 procedure=SL
 corr = 'corr'
 corr_label = 'spear' if corr=='corr' else 'reg'
@@ -77,6 +78,17 @@ print(dist_mat)
 # social network RDM dictionary
 sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
 
+
+# chicago face database measures
+all_cols = ['NodeID_study', 'Target', 'Race', 'Gender', 'Age', 'NumberofRaters', 'Female_prop', 'Male_prop', 'Asian_prop', 'Black_prop', 'Latino_prop', 'Multi_prop', 'Other_prop', 'White_prop', 'z', 'Angry', 'Attractive', 'Babyface', 'Disgusted', 'Dominant', 'Feminine', 'Happy', 'Masculine', 'Prototypic', 'Sad', 'Suitability', 'Surprised', 'Threatening', 'Trustworthy', 'Unusual', 'Luminance_median', 'Nose_Width', 'Nose_Length', 'Lip_Thickness', 'Face_Length', 'R_Eye_H', 'L_Eye_H', 'Avg_Eye_Height', 'R_Eye_W', 'L_Eye_W', 'Avg_Eye_Width', 'Face_Width_Cheeks', 'Face_Width_Mouth', 'Forehead', 'Pupil_Top_R', 'Pupil_Top_L', 'Asymmetry_pupil_top', 'Pupil_Lip_R', 'Pupil_Lip_L', 'Asymmetry_pupil_lip', 'BottomLip_Chin', 'Midcheek_Chin_R', 'Midcheek_Chin_L', 'Cheeks_avg', 'Midbrow_Hairline_R', 'Midbrow_Hairline_L', 'Faceshape', 'Heartshapeness', 'Noseshape', 'LipFullness', 'EyeShape', 'EyeSize', 'UpperHeadLength', 'MidfaceLength', 'ChinLength', 'ForeheadHeight', 'CheekboneHeight', 'CheekboneProminence', 'FaceRoundness', 'fWHR']
+
+#cfd_soc = ['Dominant', 'Trustworthy']
+#cfd_phys = ['Unusual', 'Faceshape']
+
+cfd_phys = ['Race', 'Gender', 'Age', 'Luminance_median', 'fWHR']
+cfd_soc = ['Angry', 'Attractive', 'Babyface', 'Disgusted', 'Dominant', 'Feminine', 'Happy', 'Masculine', 'Prototypic', 'Sad', 'Surprised', 'Threatening', 'Trustworthy', 'Unusual']
+
+
 # MASK
 # reference image for saving parcellation output
 parcellation_template = nib.load(MNI_PARCELLATION, mmap=False)
@@ -92,7 +104,20 @@ for s in all_sub:
     print(str(datetime.now()) + ": Analyzing subject %s" % sub)
     print(str(datetime.now()) + ": Reading in data for subject " + sub)
 
-    model_keys = sn_rdms.keys()
+    # find subject's node-image mapping
+    node_order = get_node_mapping( sub )
+
+    # get model RDMs from CFD measures
+    soc_rdms = get_model_RDM_dict(node_mapping=node_order,
+                                  meas_name_array=cfd_soc, compress=False,
+                                  out_key='soc')
+    phys_rdms = get_model_RDM_dict(node_mapping=node_order,
+                                   meas_name_array=cfd_phys, compress=False,
+                                   out_key='phys')
+
+
+    model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
+    model_keys = model_rdms.keys()
     print(str(datetime.now())+ ": Using models ")
     print(model_keys)
     out_tasks = {}
@@ -100,19 +125,7 @@ for s in all_sub:
     for task in tasks:
         print(str(datetime.now()) + ": Starting task " + task)
 
-        # load all functional masks and make largest mask
-        t = task if task in TASKS else "*"
-        print(str(datetime.now()) + ": Reading in masks")
-        func_mask_names = glob.glob(sub_mask_fname % (sub, sub, t))
-        for i,m in enumerate(func_mask_names):
-            print(m)
-            m_data = load_nii(m)
-            if i == 0:
-                m_sum = deepcopy(m_data)
-            else:
-                m_sum += m_data
-        whole_brain_mask = np.where(m_sum > 0, 1, 0)
-
+        # DATA
         # read in subject's image
         sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
         sub_dims = sub_template.get_data().shape + (N_NODES,)
@@ -131,12 +144,33 @@ for s in all_sub:
             sub_data[:,:,:,n] = d
 
         # Preset the variables to be used in the searchlight
+        # subject's data
         data = sub_data
-        mask = whole_brain_mask
+        # node labels
         bcvar = range(N_NODES) #None
+        # searchlight radius
         sl_rad = int(SL_RADIUS)
         max_blk_edge = 5
         pool_size = 1
+        # mask
+        if use_mask:
+            # load all functional masks and make largest mask
+            t = task if task in TASKS else "*"
+            print(str(datetime.now()) + ": Reading in masks")
+            func_mask_names = glob.glob(sub_mask_fname % (sub, sub, t))
+            for i,m in enumerate(func_mask_names):
+                print(m)
+                m_data = load_nii(m)
+                if i == 0:
+                    m_sum = deepcopy(m_data)
+                else:
+                    m_sum += m_data
+            whole_brain_mask = np.where(m_sum > 0, 1, 0)
+            whole_brain_mask_dil = binary_dilation(whole_brain_mask, iterations=int(SL_RADIUS)).astype(whole_brain_mask.dtype)
+            mask = whole_brain_mask_dil
+        else:
+            mask = deepcopy(d)
+            mask.fill(1)
 
         # We will get back to these commands once we finish running a simple searchlight.
         #comm = MPI.COMM_WORLD
@@ -147,7 +181,7 @@ for s in all_sub:
         begin_time = time.time()
 
         # Create the searchlight object
-        sl = Searchlight(sl_rad=sl_rad,max_blk_edge=max_blk_edge)
+        sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge, shape=Ball)
         print("Setup searchlight inputs")
         print("Input data shape: " + str(data.shape))
         print("Input mask shape: " + str(mask.shape) + "\n")
@@ -158,8 +192,9 @@ for s in all_sub:
         sl.broadcast(bcvar)
 
         # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-        for i,k in enumerate(model_keys):
-            model_rdm = sn_rdms[k]
+        mks = model_keys if task == 'avg' else sn_rdms.keys()
+        for i,k in enumerate(mks):
+            model_rdm = model_rdms[k]
             def calc_rsa(data, sl_mask, myrad, bcvar, model_mat=model_rdm):
                 data4D = data[0]
                 labels = bcvar
