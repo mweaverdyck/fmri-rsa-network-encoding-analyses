@@ -60,7 +60,7 @@ col_regressors_prefs_all = [
 'trans_x','trans_y','trans_z',
 'rot_x','rot_y','rot_z']
 # across all 4 runs of the task, include the minimum number of columns that start with these prefixes
-col_regressors_prefs_min = ['non_steady_state_outlier']
+col_regressors_prefs_min = [] #['non_steady_state_outlier']
 # delete TRs based on these columns
 
 
