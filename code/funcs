@@ -20,7 +20,7 @@ export SL='sl'
 export PROJECT_DIR=$data_dir #'/u/project/CCN/cparkins/data/encoding'
 export CODE_DIR="${PROJECT_DIR}/code"
 export BIDS_DIR="${PROJECT_DIR}/bids"
-export DERIVATIVES_DIR="${BIDS_DIR}/derivatives"
+export DERIVATIVES_DIR="${BIDS_DIR}/derivatives" #"${PROJECT_DIR}/fmriprep_1.4.0/par36" #"${BIDS_DIR}/derivatives" #
 export PREP_DIR="${DERIVATIVES_DIR}/prep"
 export FIRST_LEVEL_DIR="${DERIVATIVES_DIR}/level1"
 export SECOND_LEVEL_DIR="${DERIVATIVES_DIR}/level2"
@@ -59,14 +59,17 @@ export N_TRS=514 # total number of TRS collected
 export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
 export N_PARCELS=200 # number of ROIs in parcellation
 export N_NETWORKS=7
+export MNI_SPACE="MNI152NLin2009cAsym"
+export T1_SPACE="T1w"
 export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+export MNI_GM_MASK="${MNI_DIR}/anat/2mm_tpm_gm.nii.gz"
 export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
-export SPACES=( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
+export SPACES=( $T1_SPACE $MNI_SPACE ) #( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
 export SL_RADIUS=5
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$PARC
+export PROCEDURE=$SL
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
