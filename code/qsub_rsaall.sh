@@ -39,8 +39,12 @@ for procedure in "${PROCEDURES[@]}"; do
 
   # Run RSA
   write_log $log_args "Running RSA"
-  python3 rsa_all.py 'avg' ${procedure} ${subs[@]} | tee -a $log_file
-  python3 rsa_relevance.py ${procedure} ${subs[@]} | tee -a $log_file
+  if [[ ${procedure} == $SL ]]; then
+    python3 rsa_sl.py 'avg' ${TASKS[@]} ${subs[@]} | tee -a $log_file
+  else
+    python3 rsa_all.py 'avg' ${procedure} ${subs[@]} | tee -a $log_file
+    python3 rsa_relevance.py ${procedure} ${subs[@]} | tee -a $log_file
+  fi
   write_log $log_args "Finished RSA"
 
 done
