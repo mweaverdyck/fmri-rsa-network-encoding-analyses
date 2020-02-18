@@ -20,7 +20,7 @@ if [[ $SPACE == 'T1w' ]]; then
   for sub in ${subs[@]}; do
     write_log $log_args "Starting subject ${sub}"
 
-    sub_trans="${FMRIPREP_DIR}/${sub}/anat/${sub}_from-T1w_to-MNI*_mode-image_xfm.h5"
+    sub_trans="${FMRIPREP_DIR}/${sub}/anat/${sub}_from-T1w_to-${MNI_SPACE}_mode-image_xfm.h5"
 
     sub_dir="${in_dir}/${sub}/spear"
 
