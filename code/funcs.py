@@ -48,6 +48,7 @@ N_PARCELS = int(os.environ['N_PARCELS'])
 N_NETWORKS = int(os.environ['N_NETWORKS'])
 MNI_PARCELLATION = os.environ['MNI_PARCELLATION']
 MNI_GM_MASK = os.environ['MNI_GM_MASK']
+MNI_MASK = os.environ['MNI_MASK']
 MNI_MASK_DIL = os.environ['MNI_MASK_DIL']
 SPACE = os.environ['SPACE']
 STAT = os.environ['STAT']
