@@ -28,14 +28,20 @@ if [[ $SPACE == 'T1w' ]]; then
     mkdir -p $out_sub_dir
 
     write_log $log_args "Transforming images to MNI space using : ${sub_trans}"
-    for f in $(ls -f ${sub_dir}/*parc-${SL}*.nii.gz); do
+    for f in $(ls -f ${sub_dir}/*space-${SPACE}*parc-${SL}*.nii.gz); do
       echo $f
       in_f=$(basename $f)
       in_f=${in_f%.nii*}
       out_fname="${out_sub_dir}/${in_f}_transformed-${SPACES[1]}.nii"
+      echo "$in_f"
+      echo $out_fname
 
-      write_log $log_args "${f} --> ${out_fname}"
-      antsApplyTransforms -d 3 -i ${f} -o ${out_fname} -r ${ref_img} -t ${sub_trans} -n NearestNeighbor
+      if [[ -f "$out_fname" ]]; then
+        write_log $log_args "$out_fname already exists. Skipping transformation..."
+      else
+        write_log $log_args "${f} --> ${out_fname}"
+        antsApplyTransforms -d 3 -i ${f} -o ${out_fname} -r ${ref_img} -t ${sub_trans} -n NearestNeighbor
+      fi
     done
   done
 fi

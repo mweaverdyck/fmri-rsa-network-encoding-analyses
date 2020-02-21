@@ -76,7 +76,7 @@ print(squareform(dist2_tri))
 
 
 # social network RDM dictionary
-sn_rdms = {deg_label: deg_tri, dist_label: dist_tri, dist2_label: dist2_tri}
+sn_rdms = {deg_label: deg_tri, dist_label: dist_tri} #, dist2_label: dist2_tri}
 
 
 # run regression for each subject
@@ -99,8 +99,7 @@ for s in all_sub:
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
-    model_keys = model_rdms.keys()
+    all_model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
 
     try:
         procedure
@@ -110,6 +109,11 @@ for s in all_sub:
         procedures = [procedure]
     # run rsa
     for procedure in procedures:
-        run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=tasks)
+        for task in tasks:
+            if task == 'avg':
+                model_rdms = all_model_rdms
+            elif task in TASKS:
+                model_rdms = sn_rdms
+            run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task)
 
 print(str(datetime.now()) + ": End rsa_all.py")
