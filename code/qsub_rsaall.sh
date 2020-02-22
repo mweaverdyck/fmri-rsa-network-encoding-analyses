@@ -29,22 +29,11 @@ for procedure in "${PROCEDURES[@]}"; do
   if [[ $procedure == $PARC ]]; then
     all_parcels=( ${N_PARCELS} )
     bash transform_mni-2-T1w.sh ${subs[@]}
-  #elif [[ $procedure == $SL ]]; then
-    #all_parcels=( $SL )
-    #bash dilate_sub_mask.sh ${subs[@]}
-  #else
-  #  echo "ERROR: unrecognized procedure name. Must be $PARC or $SL, not: $procedure"
-  #  exit 0
   fi
 
   # Run RSA
   write_log $log_args "Running RSA"
-  #if [[ ${procedure} == $SL ]]; then
-  #  python3 rsa_sl.py ${TASKS[@]} ${subs[@]} | tee -a $log_file
-  #else
-    python3 rsa_all.py ${procedure} ${subs[@]} | tee -a $log_file
-    python3 rsa_relevance.py ${procedure} ${subs[@]} | tee -a $log_file
-  #fi
+  python3 rsa_all.py ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA"
 
 done

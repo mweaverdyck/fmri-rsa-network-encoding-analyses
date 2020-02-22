@@ -21,6 +21,10 @@ from funcs import *
 # DIRECTORIES
 in_dir = RSA_DIR + '%s/'
 out_dir = RSA_DIR + '%s/%s/' #%(sub, corr_label)
+print(str(datetime.now()) + ": Project directory = " + PROJECT_DIR)
+print(str(datetime.now()) + ": Input directory = " + in_dir)
+print(str(datetime.now()) + ": Output directory = " + out_dir)
+
 # FILENAMES
 # subject's data images
 data_fnames = GLM_DIR + '%s/%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.nii'#%(sub, sub,task,node)
@@ -38,8 +42,51 @@ else:
 # output file names
 out_fname = out_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
+
 # for searchlight, use mask?
 use_mask = False
+
+# chicago face database measures
+cfd_phys1 = ['Race', 'Gender', 'Age', 'Luminance_median', 'fWHR']
+cfd_soc1 = ['Babyface', 'Feminine', 'Masculine', 'Prototypic', 'Unusual']
+cfd_soc2 = ['Attractive', 'Dominant', 'Threatening', 'Trustworthy']
+cfd_emot = ['Angry', 'Disgusted', 'Happy', 'Sad', 'Surprised']
+cfd_phys = cfd_phys1 + cfd_soc1
+cfd_soc = cfd_soc2 + cfd_emot
+
+# social network measures
+deg_label = 'deg_cat-sn'
+dist_label = 'dist_cat-sn'
+dist2_label = 'dist2_cat-sn'
+
+# subject-general predictors:
+deg = np.array([1, 4, 2, 2, 3, 4, 2, 3, 2, 3])
+dist_mat = np.array([
+       [0, 2, 3, 3, 3, 2, 3, 3, 3, 1],
+       [2, 0, 1, 1, 1, 2, 3, 3, 3, 1],
+       [3, 1, 0, 2, 1, 3, 4, 4, 4, 2],
+       [3, 1, 2, 0, 1, 3, 4, 4, 4, 2],
+       [3, 1, 1, 1, 0, 3, 4, 4, 4, 2],
+       [2, 2, 3, 3, 3, 0, 1, 1, 1, 1],
+       [3, 3, 4, 4, 4, 1, 0, 1, 2, 2],
+       [3, 3, 4, 4, 4, 1, 1, 0, 1, 2],
+       [3, 3, 4, 4, 4, 1, 2, 1, 0, 2],
+       [1, 1, 2, 2, 2, 1, 2, 2, 2, 0]])
+dist2_tri = pdist(dist_mat)
+
+# Degree RDM
+deg_tri = make_model_RDM(deg)
+print(str(datetime.now()) + ": Degree RDM: ")
+print(squareform(deg_tri))
+
+# Distance RDM
+dist_tri = squareform(dist_mat)
+print(str(datetime.now()) + ": Distance RDM: ")
+print(dist_mat)
+
+# Second-Order Distance RDM
+print(str(datetime.now()) + ": Second-Order Distance RDM: ")
+print(squareform(dist2_tri))
 
 
 # STUDY-SPECIFIC
@@ -114,7 +161,7 @@ def ortho_mat(model_mat):
     model_mat,R = np.linalg.qr(model_mat)
     return(model_mat)
 
-def rsa_reg(neural_v, model_mat):
+def rsa_reg(neural_v, model_mat, val_label=None):
     # orthogonalize
     model_mat = ortho_mat(model_mat)
     # add column of ones (constant)
@@ -122,16 +169,21 @@ def rsa_reg(neural_v, model_mat):
     # Convert neural DSM to column vector
     neural_v=neural_v.reshape(-1,1)
     # Compute betas and constant
-    betas = np.linalg.lstsq(X, neural_v, rcond=None)[0]
-    # Determine model (if interested in R)
-    for k in range(len(betas)-1):
-        if k==0:
-            model = X[:,k].reshape(-1,1)*betas[k]
-        else:
-            model = model + X[:,k].reshape(-1,1)*betas[k]
-    # Get multiple correlation coefficient (R)
-    R = pearsonr(neural_v.flatten(),model.flatten())[0]
-    out = np.concatenate((betas.flatten()[:-1], np.array([R])))
+    betas, resid = np.linalg.lstsq(X, neural_v, rcond=None)[:2]
+    # get R^2 based on residuals
+    r2 = 1 - resid / (neural_v.size * neural_v.var())
+    # # Determine model (if interested in R)
+    # for k in range(len(betas)-1):
+    #     if k==0:
+    #         model = X[:,k].reshape(-1,1)*betas[k]
+    #     else:
+    #         model = model + X[:,k].reshape(-1,1)*betas[k]
+    # # Get multiple correlation coefficient (R)
+    # R = pearsonr(neural_v.flatten(),model.flatten())[0]
+    if val_label == 'R2':
+        out = np.array(r2)
+    else:
+        out = np.concatenate((betas.flatten()[:-1], np.array(r2)))
     return(out)
 
 def rsa_cor(neural_v, model_mat):
@@ -139,7 +191,7 @@ def rsa_cor(neural_v, model_mat):
     out = out[0][0,1:]
     return(out)
 
-def run_rsa_roi(roi_data, model_mat, corr='corr'):
+def run_rsa_roi(roi_data, model_mat, corr='corr', val_label=None):
     # calculate roi RDM (lower triangle)
     roi_tri = pdist(roi_data, metric='correlation')
     roi_tri[np.isnan(roi_tri)] = 0.
@@ -147,25 +199,24 @@ def run_rsa_roi(roi_data, model_mat, corr='corr'):
     if corr=='corr':
         res = rsa_cor(neural_v=roi_tri, model_mat=model_mat)
     elif corr=='reg':
-        res = rsa_reg(neural_v=roi_tri, model_mat=model_mat)
+        res = rsa_reg(neural_v=roi_tri, model_mat=model_mat, val_label=val_label)
     out_dict = {'result':res}
     return(out_dict)
 
-def run_rsa_searchlight(sl, model_mat, corr='corr'):
-    def calc_rsa(data, sl_mask, myrad, bcvar, model_mat=model_mat):
+def run_rsa_searchlight(sl, model_mat, corr='corr', val_label=None):
+    def calc_rsa(data, sl_mask, myrad, bcvar, model_mat=model_mat, val_label=val_label):
         data4D = data[0]
         labels = NODES
         bolddata_sl = data4D.reshape(sl_mask.shape[0] * sl_mask.shape[1] * sl_mask.shape[2], data[0].shape[3]).T
-        res_dict = run_rsa_roi(bolddata_sl, model_mat, corr)
+        res_dict = run_rsa_roi(bolddata_sl, model_mat, corr, val_label=val_label)
         res = res_dict['result']
         return res
     print(str(datetime.now())+ ": Begin Searchlight")
     sl_result = sl.run_searchlight(calc_rsa, pool_size=1)
-    # results in None for 3 rows in ever dimension all around
     print(str(datetime.now())+ ": End Searchlight")
     return sl_result
 
-def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
+def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None, pred=None):
     """
     sub: str subject ID
     model_rdms: dictionary with model names as keys and lower triangles of RDMs as elements
@@ -178,7 +229,12 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
 
     # get labels
     corr_label = 'spear' if corr=='corr' else 'reg'
-    val_label = 'r' if corr=='corr' else 'beta'
+    if val_label is None:
+        val_label = 'r' if corr=='corr' else 'beta'
+    elif val_label == "R2" and corr!='reg':
+        print("ERROR: cannot calculate R2 with corr label '"+corr+"'. Must be 'reg'")
+        exit(1)
+
     parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
     # make output directories if they don't exist
     if not os.path.exists(out_dir % (sub, corr_label)):
@@ -207,11 +263,11 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
     parcellation_template.set_data_dtype(np.double)
 
     # get model names
-    model_keys = model_rdms.keys()
-    print(str(datetime.now())+ ": Using models ")
-    print(model_keys)
+    model_keys = [pred] if val_label == "R2" else model_rdms.keys()
+    print(str(datetime.now())+ ": Using the following models to get "+val_label+" values")
+    print(model_rdms.keys())
     # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-    for i,k in enumerate(model_keys):
+    for i,k in enumerate(model_rdms.keys()):
         if i == 0:
             # if first model, setup matrix
             model_rdms_mat = [model_rdms[k]]
@@ -249,7 +305,6 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
             # searchlight radius
             sl_rad = int(SL_RADIUS)
             max_blk_edge = 5
-            pool_size = 1
             # mask
             if use_mask:
                 # load all functional masks and make largest mask
@@ -288,23 +343,15 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
             print(str(datetime.now())+ ": Shape of searchlight")
             print(sl.shape)
             # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-            #for i,k in enumerate(model_keys):
-            #model_rdm = model_rdms[k]
-            sl_result = run_rsa_searchlight(sl, model_rdms_mat)
+            sl_result = run_rsa_searchlight(sl, model_rdms_mat, corr=corr, val_label=val_label)
             end_time = time.time()
 
             # Print outputs
             print(str(datetime.now())+ ": Number of searchlights run: " + str(len(sl_result[mask==1])))
-            print(str(datetime.now())+ ': Total searchlight duration (including start up time): %.2f' % (end_time - begin_time))
+            print(str(datetime.now())+ ': Total searchlight duration (including start up time): %.2f min' % ((end_time - begin_time)/60))
             # separate values
             for i,k in enumerate(model_keys):
                 out_data_dict[k] = deepcopy(sl_result)
-                #out_data_dict[k][sl_result==None] = 0.
-                #res_nonzero = sl_result[sl_result!=None]
-                # go through each voxel
-                #for x, val in enumerate(res_nonzero):
-                #    out_val = val[i]
-                #    out_data_dict[k][sl_result != None] = out_val
                 for x in range(sl_result.shape[0]):
                     for y in range(sl_result.shape[1]):
                         for z in range(sl_result.shape[2]):
@@ -317,10 +364,6 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
 
                 out_data_dict[k] = out_data_dict[k].astype('double')
 
-
-            # out_data_dict[k] = sl_result
-            # fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
-            # save_nii(sl_result, ref_img, fname)
         elif isParc(procedure):
             # out csv filename
             sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label)
@@ -405,6 +448,238 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False):
         out_tasks[task] = out_data_dict
         out_tasks['ref_img'] = ref_img
     return(out_tasks)
+
+#
+# def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None):
+#     """
+#     sub: str subject ID
+#     model_rdms: dictionary with model names as keys and lower triangles of RDMs as elements
+#     tasks: array of task names: friend, number, avg
+#     """
+#     # check type of input arguments
+#
+#     # subject id
+#     sub = convert2subid(sub)
+#
+#     # get labels
+#     corr_label = 'spear' if corr=='corr' else 'reg'
+#     if val_label is None:
+#         val_label = 'r' if corr=='corr' else 'beta'
+#
+#     parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
+#     # make output directories if they don't exist
+#     if not os.path.exists(out_dir % (sub, corr_label)):
+#         os.makedirs(out_dir % (sub, corr_label))
+#
+#     # tasks to run
+#     if not isinstance(tasks, list):
+#         tasks = [tasks]
+#
+#     # dictionary of model representational dissimilarity matrices (lower triangles)
+#     if not isinstance(model_rdms, dict):
+#         if isinstance(model_rdms, list):
+#             model_rdms={'model':model_rdms}
+#         else:
+#             print("ERROR: model_rdms input must be dictionary")
+#             exit(1)
+#
+#     # procedure to run
+#     if procedure not in PROCEDURES_ALL:
+#         print("ERROR: procedure is not in PROCEDURES_ALL")
+#         print(PROCEDURES_ALL)
+#         exit(1)
+#
+#     # reference image for saving parcellation output
+#     parcellation_template = nib.load(MNI_PARCELLATION, mmap=False)
+#     parcellation_template.set_data_dtype(np.double)
+#
+#     # get model names
+#     model_keys = model_rdms.keys()
+#     print(str(datetime.now())+ ": Using models ")
+#     print(model_keys)
+#     # turn model dictionary into matrix, s.t. column = model RDM lower triangle
+#     for i,k in enumerate(model_keys):
+#         if i == 0:
+#             # if first model, setup matrix
+#             model_rdms_mat = [model_rdms[k]]
+#         else:
+#             # add next matrix as row
+#             model_rdms_mat = np.vstack((model_rdms_mat, model_rdms[k]))
+#
+#     # transpose so that each column corresponds to each measure
+#     model_rdms_mat = np.transpose(model_rdms_mat)
+#
+#     out_tasks = {}
+#     # iterate through inputted tasks
+#     for task in tasks:
+#         # read in subject's image
+#         sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
+#         sub_dims = sub_template.get_data().shape + (N_NODES,)
+#         sub_data = np.empty(sub_dims)
+#         for n in range(N_NODES):
+#             print(str(datetime.now()) + ": Reading in node " + str(n))
+#             if task=='avg':
+#                 # average this node's data from both runs
+#                 d1 = load_nii(data_fnames % (sub, sub, TASKS[0], n))
+#                 d2 = load_nii(data_fnames % (sub, sub, TASKS[1], n))
+#                 d = (d1+d2)/2
+#             else:
+#                 d = load_nii(data_fnames % (sub, sub, task, n))
+#             # save to fourth dimension
+#             sub_data[:,:,:,n] = d
+#
+#         out_data_dict = {}
+#         if isSl(procedure):
+#             ref_img = sub_template
+#             # node labels
+#             bcvar = None #range(N_NODES) #None
+#             # searchlight radius
+#             sl_rad = int(SL_RADIUS)
+#             max_blk_edge = 5
+#             # mask
+#             if use_mask:
+#                 # load all functional masks and make largest mask
+#                 t = task if task in TASKS else "*"
+#                 print(str(datetime.now()) + ": Reading in masks")
+#                 func_mask_names = glob.glob(sub_mask_fname % (sub, sub, t))
+#                 for i,m in enumerate(func_mask_names):
+#                     print(m)
+#                     m_data = load_nii(m)
+#                     if i == 0:
+#                         m_sum = deepcopy(m_data)
+#                     else:
+#                         m_sum += m_data
+#                 whole_brain_mask = np.where(m_sum > 0, 1, 0)
+#                 whole_brain_mask_dil = binary_dilation(whole_brain_mask, iterations=int(SL_RADIUS)).astype(whole_brain_mask.dtype)
+#                 mask = whole_brain_mask_dil
+#             else:
+#                 mask = deepcopy(d)
+#                 mask.fill(1)
+#
+#             # Create the searchlight object
+#             begin_time = time.time()
+#             sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge, shape=Ball)
+#             print(str(datetime.now())+ ": Setup searchlight inputs")
+#             print(str(datetime.now())+ ": Input data shape: " + str(sub_data.shape))
+#
+#             # Distribute the information to the searchlights (preparing it to run)
+#             print(str(datetime.now())+ ": Distributing searchlight")
+#             sl.distribute([sub_data], mask)
+#             # Data that is needed for all searchlights is sent to all cores via
+#             # the sl.broadcast function. In this example, we are sending the
+#             # labels for classification to all searchlights.
+#             print(str(datetime.now())+ ": Broadcasting bcvar")
+#             sl.broadcast(bcvar)
+#
+#             print(str(datetime.now())+ ": Shape of searchlight")
+#             print(sl.shape)
+#             # turn model dictionary into matrix, s.t. column = model RDM lower triangle
+#             sl_result = run_rsa_searchlight(sl, model_rdms_mat, val_label=val_label)
+#             end_time = time.time()
+#
+#             # Print outputs
+#             print(str(datetime.now())+ ": Number of searchlights run: " + str(len(sl_result[mask==1])))
+#             print(str(datetime.now())+ ': Total searchlight duration (including start up time): %.2f' % (end_time - begin_time))
+#             # separate values
+#             for i,k in enumerate(model_keys):
+#                 out_data_dict[k] = deepcopy(sl_result)
+#                 for x in range(sl_result.shape[0]):
+#                     for y in range(sl_result.shape[1]):
+#                         for z in range(sl_result.shape[2]):
+#                             val = sl_result[x,y,z]
+#                             if val is None:
+#                                 out_val = 0.
+#                             else:
+#                                 out_val = val[i]
+#                             out_data_dict[k][x,y,z] = out_val
+#
+#                 out_data_dict[k] = out_data_dict[k].astype('double')
+#
+#         elif isParc(procedure):
+#             # out csv filename
+#             sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label)
+#             if (not overwrite) and os.path.isfile(sub_csv_fname):
+#                     read_bool = True
+#                     # read in csv if already exists
+#                     sub_csv = pd.read_csv(sub_csv_fname)
+#                     # remove row column
+#                     sub_csv = sub_csv.iloc[:,1:]
+#                     # save all completed ROIs except for last one (since may not have been finished)
+#                     completed_rois = np.unique(sub_csv['roi'])[:-1]
+#                     sub_csv = sub_csv[sub_csv['roi'].isin(completed_rois)]
+#                     sub_csv.to_csv(sub_csv_fname)
+#                     out_csv_array = sub_csv.values.tolist()
+#             else:
+#                 if os.path.isfile(sub_csv_fname):
+#                     os.remove(sub_csv_fname)
+#                     print("Deleted "+sub_csv_fname)
+#                 read_bool = False
+#                 out_csv_array = []
+#                 completed_rois = []
+#             wtr = csv.writer(open(sub_csv_fname, 'a'), delimiter=',', lineterminator='\n')
+#             # column names for csv file
+#             colnames = ['sub','task','roi','predictor',val_label]
+#             if not read_bool:
+#                 # write out to csv
+#                 wtr.writerow(colnames)
+#             ref_img = parcellation_template
+#             # make mask
+#             parcellation = sub_parc % (sub, sub)
+#             print(str(datetime.now()) + ": Using parcellation " + parcellation)
+#             parc_data = load_nii(parcellation)
+#             roi_list = np.unique(parc_data)
+#             # remove 0 (i.e., the background)
+#             roi_list = np.delete(roi_list,0)
+#             # check if number of parcels matches global variable
+#             if N_PARCELS != len(roi_list):
+#                 print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
+#
+#             # Run regression on each parcellation
+#             print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
+#             # get the voxels from parcellation nii
+#             out_data = ref_img.get_data().astype(np.double)
+#             # create a dictionary of nii's: one per predictor
+#             for i,k in enumerate(model_keys):
+#                 out_data_dict[k] = deepcopy(out_data)
+#             # iterate through each ROI of parcellation and run regression
+#             for r, parc_roi in enumerate(roi_list):
+#                 if parc_roi in completed_rois:
+#                     print(str(datetime.now()) + ': ROI '+str(parc_roi)+' already saved.')
+#                     # read in values from dataframe for nii
+#                     res = get_roi_csv_val(sub_csv, parc_roi, val_label)
+#                 else:
+#                     perc_done = round(((r+1) / len(roi_list)) * 100, 3)
+#                     print(str(datetime.now()) + ': Analyzing ROI '+str(parc_roi)+' -- '+str(perc_done)+'%')
+#                     # create mask for this ROI
+#                     roi_mask = parc_data==parc_roi
+#                     roi_mask = roi_mask.astype(int)
+#                     roi_data = get_roi_data(sub_data, roi_mask)
+#                     res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr, val_label=val_label)
+#                     res = res_dict['result']
+#                 # for each model, save the result to its image in out_data_dict
+#                 for i,k in enumerate(model_keys):
+#                     # save to dataframe if not already there
+#                     if parc_roi not in completed_rois:
+#                         val = res[i]
+#                         csv_row = [sub, task, parc_roi, k, val]
+#                         out_csv_array.append(csv_row)
+#                         # write out to csv
+#                         wtr.writerow(csv_row)
+#                     else:
+#                         val = res[k]
+#                     # update voxels
+#                     model_data = out_data_dict[k]
+#                     model_data[model_data==parc_roi] = val
+#                     out_data_dict[k] = model_data
+#         # save images
+#         for k in out_data_dict.keys():
+#             fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
+#             save_nii( out_data_dict[k], ref_img, fname )
+#         # add to output array
+#         out_tasks[task] = out_data_dict
+#         out_tasks['ref_img'] = ref_img
+#     return(out_tasks)
+#
 
 
 # def run_second_order_rsa(subs, model_rdms, procedure, corr, tasks=['avg'], overwrite=False):
