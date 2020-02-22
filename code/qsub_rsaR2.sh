@@ -33,7 +33,7 @@ for procedure in "${PROCEDURES[@]}"; do
 
   # Run RSA
   write_log $log_args "Running RSA"
-  python3 rsa_stages.py ${procedure} ${subs[@]} | tee -a $log_file
+  python3 rsa_R2.py ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA"
 
 done

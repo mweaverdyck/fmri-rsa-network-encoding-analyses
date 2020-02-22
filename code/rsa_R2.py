@@ -2,10 +2,9 @@
 from funcs import *
 from rsa_funcs import *
 
-print(str(datetime.now()) + ": Begin rsa_all.py")
+print(str(datetime.now()) + ": Begin rsa_R2.py")
 
 # read in arguments
-
 all_sub = []
 tasks=[]
 # read in arguments
@@ -19,18 +18,18 @@ for arg in sys.argv[1:]:
         all_sub += [arg]
 
 if len(tasks) == 0:
-    tasks = TASKS
+    tasks = ['avg']
 
 # overwrite previous csv files? If False, will read in csv and append
 overwrite = True
-
 print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " + str(all_sub))
 
 # set variables
-corr = 'corr' # 'corr' or 'reg'
+corr = 'reg' # 'corr' or 'reg'
+val_label = 'R2' # None
 
 # social network RDM dictionary
-sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
+sn_rdms = {deg_label: deg_tri, dist_label: dist_tri, dist2_label: dist2_tri}
 
 # run regression for each subject
 for s in all_sub:
@@ -52,7 +51,7 @@ for s in all_sub:
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    all_model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
+    all_model_rdms = {"sn":sn_rdms, "soc":soc_rdms, "phys":phys_rdms}
 
     try:
         procedure
@@ -63,10 +62,8 @@ for s in all_sub:
     # run rsa
     for procedure in procedures:
         for task in tasks:
-            if task == 'avg':
-                model_rdms = all_model_rdms
-            elif task in TASKS:
-                model_rdms = sn_rdms
-            run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task)
+            for key in all_model_rdms:
+                model_rdms = all_model_rdms[key]
+                run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task, val_label=val_label, pred=key)
 
-print(str(datetime.now()) + ": End rsa_all.py")
+print(str(datetime.now()) + ": End rsa_R2.py")

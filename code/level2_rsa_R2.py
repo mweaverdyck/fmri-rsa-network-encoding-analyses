@@ -123,4 +123,4 @@ for corr_label in corr_labels:
                     print(data_tasks)
                 run_sig_tests(data_fnames, out_dir, mask = gm_mask_dil_img)
 
-print(str(datetime.now()) + ": End level2_rsa_stages.py")
+print(str(datetime.now()) + ": End level2_rsa_R2.py")

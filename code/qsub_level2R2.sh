@@ -15,7 +15,7 @@ set -e
 source funcs
 setup_modules ${python_v}
 
-label='LEVEL2_STAGES'
+label='LEVEL2_R2'
 in_dir=${RSA_DIR}
 out_dir=${SECOND_LEVEL_DIR}/reg
 
@@ -26,6 +26,6 @@ write_log $log_args "Analyzing subjects: ${SUBS[@]}"
 mkdir -p "${out_dir}"
 
 . transform_T1w-2-mni.sh 'reg' $ALL
-python3 level2_rsa_stages.py $@
+python3 level2_rsa_R2.py $@
 
 log_end $log_args

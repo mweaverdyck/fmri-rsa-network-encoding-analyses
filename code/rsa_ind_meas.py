@@ -2,9 +2,10 @@
 from funcs import *
 from rsa_funcs import *
 
-print(str(datetime.now()) + ": Begin rsa_stages.py")
+print(str(datetime.now()) + ": Begin rsa_ind_meas.py")
 
 # read in arguments
+
 all_sub = []
 tasks=[]
 # read in arguments
@@ -18,18 +19,18 @@ for arg in sys.argv[1:]:
         all_sub += [arg]
 
 if len(tasks) == 0:
-    tasks = ['avg']
+    tasks = TASKS
 
 # overwrite previous csv files? If False, will read in csv and append
 overwrite = True
+
 print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " + str(all_sub))
 
 # set variables
-corr = 'reg' # 'corr' or 'reg'
-val_label = 'R2' # None
+corr = 'corr' # 'corr' or 'reg'
 
 # social network RDM dictionary
-sn_rdms = {deg_label: deg_tri, dist_label: dist_tri, dist2_label: dist2_tri}
+sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
 
 # run regression for each subject
 for s in all_sub:
@@ -51,7 +52,7 @@ for s in all_sub:
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    all_model_rdms = {"sn":sn_rdms, "soc":soc_rdms, "phys":phys_rdms}
+    all_model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
 
     try:
         procedure
@@ -62,8 +63,10 @@ for s in all_sub:
     # run rsa
     for procedure in procedures:
         for task in tasks:
-            for key in all_model_rdms:
-                model_rdms = all_model_rdms[key]
-                run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task, val_label=val_label, pred=key)
+            if task == 'avg':
+                model_rdms = all_model_rdms
+            elif task in TASKS:
+                model_rdms = sn_rdms
+            run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task)
 
-print(str(datetime.now()) + ": End rsa_all.py")
+print(str(datetime.now()) + ": End rsa_ind_meas.py")

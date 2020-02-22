@@ -4,7 +4,7 @@
 #$ -o joblogs/joblog.rsasl.$JOB_ID.log
 #$ -j y
 #$ -pe shared 2
-#$ -l h_rt=11:59:00,h_data=8G
+#$ -l h_rt=5:59:00,h_data=8G
 # Notify when
 #$ -m ae
 #
@@ -29,7 +29,7 @@ write_log $log_args "Running procedure: ${procedure}"
 
 # Run RSA
 write_log $log_args "Running RSA"
-python3 rsa_sl.py 'avg' ${TASKS[@]} ${subs[@]} | tee -a $log_file
+python3 rsa_sl.py 'avg' ${subs[@]} | tee -a $log_file
 write_log $log_args "Finished RSA"
 
 log_end $log_args

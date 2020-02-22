@@ -16,7 +16,7 @@ set -e
 source funcs
 setup_modules $fsl_v $python_v
 
-label='RSA_ALL'
+label='RSA_IND'
 in_dir=${GLM_DIR}
 out_dir=${RSA_DIR}
 
@@ -33,7 +33,7 @@ for procedure in "${PROCEDURES[@]}"; do
 
   # Run RSA
   write_log $log_args "Running RSA"
-  python3 rsa_all.py ${procedure} ${subs[@]} | tee -a $log_file
+  python3 rsa_ind_meas.py ${TASKS[@]} ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA"
 
 done
