@@ -1,4 +1,4 @@
-# searchlight
+# second level tests on searchlight results
 from nistats.second_level_model import SecondLevelModel
 import os
 import shutil
@@ -16,11 +16,14 @@ from nilearn.image import math_img
 from nilearn.input_data import NiftiMasker
 from nistats import second_level_model
 from nilearn import plotting
-from nilearn.plotting import plot_glass_brain
+from nilearn.plotting import plot_glass_brain, plot_stat_map
+from nistats import thresholding
+from nistats.thresholding import map_threshold
 #from nistats.second_level_model import non_parametric_inference
 from funcs import *
 
 def run_sig_tests(data_fnames, mask=None):
+    cmap = "Wistia"
     second_level_model = SecondLevelModel(smoothing_fwhm=5.0, mask=mask)
     if isinstance(data_fnames,dict):
         data_fnames_num = sorted(data_fnames['number'])
@@ -41,8 +44,10 @@ def run_sig_tests(data_fnames, mask=None):
                                  columns=labs + ['diff'])
         if fname_atts['pred'] == 'deg':
             data_fnames = data_fnames_num + data_fnames_fri
+            cmap = "winter"
         elif fname_atts['pred'] == 'dist':
             data_fnames = data_fnames_fri + data_fnames_num
+            cmap = "cool"
         print(data_fnames)
         con_name = 'diff'
     else:
@@ -71,7 +76,7 @@ def run_sig_tests(data_fnames, mask=None):
     threshold = 2.88 #3.1  # correponds to  p < .001, uncorrected
     display = plotting.plot_glass_brain(
         z_map, threshold=threshold, colorbar=True, plot_abs=False,
-        output_file=out_fname,
+        output_file=out_fname, cmap = cmap,
         title='z map')
     # save p map
     p_val = second_level_model.compute_contrast(con_name, output_type='p_value')
@@ -93,34 +98,51 @@ def run_sig_tests(data_fnames, mask=None):
     # FDR correction
     p_arr = p_val.get_data().flatten()
     sigs, fdr_val, a, b = multipletests(p_arr, alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
-    fname_atts['val2'] = "p"
-    fname_atts['correction'] = "fdr"
-    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
-    save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
     pfdr = deepcopy(1-fdr_val)
     pfdr[fdr_val==0.] = 0.
     pfdr = pfdr.reshape(p_val.shape)
     pfdr_map = nib.Nifti1Image(pfdr, p_val.affine, p_val.header)
+    fname_atts['val2'] = "p"
+    fname_atts['correction'] = "fdr"
+    fname_atts['dir'] = "rev"
+    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+    nib.save(pfdr_map, out_fname)
+    print(out_fname + ' saved.')
+    #save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
     threshold = .95
     display = plotting.plot_glass_brain(
         pfdr_map, threshold=threshold, colorbar=True, plot_abs=False,
-        output_file=out_fname,
-        title='p map FDR-corrected')
-    # neg_log_pvals_permuted_ols_unmasked = \
-    #                     non_parametric_inference(second_level_input,
-    #                                  design_matrix=design_matrix,
-    #                                  model_intercept=True, n_perm=1000,
-    #                                  two_sided_test=False,
-    #                                  smoothing_fwhm=8.0, n_jobs=1)
-    # fname_atts['val2'] = "p"
-    # fname_atts['correction'] = "permutation"
-    # out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
-    # save_nii(neg_log_pvals_permuted_ols_unmasked, ref_img, out_fname)
+        output_file=out_fname, cmap = cmap,
+        title='p map FDR-corrected, p < 0.05')
+    # threshold plots
+    if fname_atts['pred'] in ['deg','dist']:
+        thresholded_map1, threshold1 = map_threshold(
+            z_map, level=.001, height_control='fpr', cluster_threshold=10)
+        thresholded_map2, threshold2 = map_threshold(
+            z_map, level=.05, height_control='fdr')
+        print('The FDR=.05 threshold is %.3g' % threshold2)
+        fname_atts['val2'] = "z"
+        fname_atts['thresh'] = "p05"
+        fname_atts['plot'] = "statmap"
+        out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+        display = plot_stat_map(z_map, title='Raw z map, expected fdr = .05')
+        display = plot_stat_map(thresholded_map2, cut_coords=display.cut_coords,
+                   title='Thresholded z map, expected fdr = .05, z = '+str(threshold2),
+                   threshold=threshold2)
+        display.savefig(out_fname)
+        fname_atts['plot'] = "glassbrain"
+        out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+        display = plot_glass_brain(thresholded_map2, cut_coords=display.cut_coords,
+                   title='Thresholded z map, expected fdr = .05, z = '+str(threshold2),
+                   threshold=threshold2)
+        display.savefig(out_fname)
 
 parc_label = 'sl' + SL_RADIUS
 corrs=['spear', 'reg']
+preds_all = cfd_soc + cfd_phys + ['deg', 'dist']
 corr_labels = []
 tasks=[]
+preds=[]
 # read in arguments
 for arg in sys.argv[1:]:
     print(arg)
@@ -128,12 +150,17 @@ for arg in sys.argv[1:]:
         corr_labels += [arg]
     elif arg in TASKS or arg == 'avg':
         tasks += [arg]
+    elif arg in preds_all:
+        preds += [arg]
 
 if len(corr_labels) == 0:
     corr_labels = ['spear']
 
 if len(tasks) == 0:
     tasks = TASKS + ['avg']
+
+if len(preds) == 0:
+    preds = preds_all
 
 task_sects = [[],[]]
 for t in tasks:
@@ -153,13 +180,12 @@ for corr_label in corr_labels:
     in_dir = os.path.join(RSA_DIR,'*',corr_label)
     if SPACE=='T1w':
         in_dir = os.path.join(in_dir,'T1w-2-MNI')
-    for pred in ['deg', 'dist']:
+    for pred in preds:
         print('starting predictor '+pred)
         data_tasks = {}
         for task in tasks:
             print("starting task "+task)
             fnames = os.path.join(in_dir, '*task-'+task+'*space-'+SPACE+'*_parc-'+parc_label+'_*val-r_*pred-'+pred+'*.nii*')
-            print(fnames)
             data_fnames = glob.glob(fnames)
             if len(data_fnames) != 0:
                 if task in TASKS:

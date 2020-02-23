@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -cwd
 # error = Merged with joblog
-#$ -o joblogs/joblog.level2parc.$JOB_ID.log
+#$ -o joblogs/joblog.level2stages.$JOB_ID.log
 #$ -j y
 #$ -pe shared 1
 #$ -l h_rt=23:59:00,h_data=8G
@@ -25,7 +25,7 @@ log_args="$LOG_ARGS"
 write_log $log_args "Analyzing subjects: ${SUBS[@]}"
 mkdir -p "${out_dir}"
 
-. transform_T1w-2-mni.sh $ALL
+. transform_T1w-2-mni.sh spear $ALL
 python3 level2_rsa_sl.py $@
 
 log_end $log_args
