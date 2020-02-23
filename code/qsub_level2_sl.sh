@@ -26,6 +26,6 @@ write_log $log_args "Analyzing subjects: ${SUBS[@]}"
 mkdir -p "${out_dir}"
 
 . transform_T1w-2-mni.sh spear $ALL
-python3 level2_rsa_sl.py $@
+python3 level2_sl.py $@
 
 log_end $log_args

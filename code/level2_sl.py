@@ -21,6 +21,7 @@ from nistats import thresholding
 from nistats.thresholding import map_threshold
 #from nistats.second_level_model import non_parametric_inference
 from funcs import *
+#from rsa_funcs import *
 
 def run_sig_tests(data_fnames, mask=None):
     cmap = "Wistia"
@@ -139,7 +140,7 @@ def run_sig_tests(data_fnames, mask=None):
 
 parc_label = 'sl' + SL_RADIUS
 corrs=['spear', 'reg']
-preds_all = cfd_soc + cfd_phys + ['deg', 'dist']
+preds_all = ['deg', 'dist', 'sn', 'soc', 'phys'] #+ cfd_soc + cfd_phys
 corr_labels = []
 tasks=[]
 preds=[]
