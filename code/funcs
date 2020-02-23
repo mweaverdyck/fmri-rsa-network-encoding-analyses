@@ -61,7 +61,7 @@ export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
 export SPACES=( $T1_SPACE $MNI_SPACE ) #( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
-export SL_RADIUS=5
+export SL_RADIUS=4
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
 export PROCEDURE=$SL
 if [[ $PROCEDURE == $ALL ]]; then
