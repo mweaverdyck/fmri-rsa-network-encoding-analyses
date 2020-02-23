@@ -15,7 +15,10 @@
 source funcs
 setup_modules $python_v
 
-SPACE=${MNI_SPACE}
+if [[ $SPACE -ne ${MNI_SPACE} ]]; then
+  echo "Must be in MNI space, not ${SPACE}. Exiting..."
+  exit 1
+fi
 
 label='GLM'
 in_dir=${DERIVS_DIR}
