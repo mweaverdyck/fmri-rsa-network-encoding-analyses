@@ -19,15 +19,16 @@ from nilearn.plotting import plot_glass_brain
 #from nistats.second_level_model import non_parametric_inference
 from funcs import *
 
-out_dir = SECOND_LEVEL_DIR
+out_dir = os.path.join(SECOND_LEVEL_DIR, 'face')
 mni_mask_dil_img = nib.load(MNI_MASK_DIL)
 
 in_dir = os.path.join(GLM_DIR,'sub-*')
-if SPACE=='T1w':
+space_label = MNI_SPACE #SPACE
+if space_label=='T1w':
     in_dir = os.path.join(in_dir,'T1w-2-MNI')
 
 # get file names
-fnames = os.path.join(in_dir, '*task-??????_space-'+SPACE+'*node-all.nii')
+fnames = os.path.join(in_dir, '*task-??????_space-'+space_label+'*node-all.nii')
 data_fnames = glob.glob(fnames)
 print("Running significance testing on: ")
 print(data_fnames)
@@ -53,7 +54,7 @@ print(design_matrix)
 model = model.fit(data_fnames,
                        design_matrix=design_matrix)
 z_map = model.compute_contrast(con_name, output_type='z_score')
-out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
 nib.save(z_map, out_fname)
 print(out_fname + ' saved.')
 threshold = 3.1 #3.1  # correponds to  p < .001, uncorrected
@@ -64,7 +65,7 @@ display = plotting.plot_glass_brain(
 # save p map
 p_val = model.compute_contrast(con_name, output_type='p_value')
 fname_atts['val2'] = "p"
-out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
 nib.save(p_val, out_fname)
 print(out_fname + ' saved.')
 # correct for multiple comparisons
@@ -75,7 +76,7 @@ neg_log_pval = math_img("-np.log10(np.minimum(1, img * {}))"
         img=p_val)
 fname_atts['val2'] = "p"
 fname_atts['correction'] = "parametric"
-out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
 nib.save(neg_log_pval, out_fname)
 print(out_fname + ' saved.')
 # FDR correction
@@ -83,7 +84,7 @@ p_arr = p_val.get_data().flatten()
 sigs, fdr_val, a, b = multipletests(p_arr, alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
 fname_atts['val2'] = "p"
 fname_atts['correction'] = "fdr"
-out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
 save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
 
 # from nistats.second_level_model import non_parametric_inference
@@ -94,4 +95,4 @@ save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
 #                              two_sided_test=False,
 #                              smoothing_fwhm=5.0, n_jobs=1)
 
-print(str(datetime.now()) + ": End level2_rsa_sl.py")
+print(str(datetime.now()) + ": End level2_face.py")

@@ -28,7 +28,7 @@ except RuntimeError:
 
 
 derivatives_prefix = DERIVS_DIR + 'derivatives_'
-space_label = SPACE
+space_label = MNI_SPACE #SPACE
 tasks = ['friend','number']
 nodes = range(N_NODES)
 

@@ -15,6 +15,8 @@
 source funcs
 setup_modules $python_v
 
+SPACE=${MNI_SPACE}
+
 label='GLM'
 in_dir=${DERIVS_DIR}
 out_dir=${GLM_DIR}
