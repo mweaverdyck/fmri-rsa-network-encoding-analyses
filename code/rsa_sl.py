@@ -23,6 +23,33 @@ from rsa_funcs import *
 import matplotlib.pyplot as plt
 #import seaborn as sns
 
+
+def run_searchlight_fun(sl, model_mat):
+    def calc_rsa(data, sl_mask, myrad, bcvar, model_mat):
+        data4D = data[0]
+        labels = bcvar
+        bolddata_sl = data4D.reshape(sl_mask.shape[0] * sl_mask.shape[1] * sl_mask.shape[2], data[0].shape[3]).T
+        roi_tri = pdist(bolddata_sl, metric='correlation')
+        roi_tri[np.isnan(roi_tri)] = 0.
+        rho, pval = spearmanr(roi_tri, model_mat)
+        return rho
+    print("Begin Searchlight\n")
+    sl_result = sl.run_searchlight(calc_rsa, pool_size=1)
+    print("End Searchlight\n")
+    end_time = time.time()
+    # Print outputs
+    print("Number of searchlights run: " + str(len(sl_result[mask==1])))
+    print("Rho values for each kernel function: " +str(sl_result[mask==1].astype('double')))
+    print('Total searchlight duration (including start up time): %.2f' % (end_time - begin_time))
+    # Save the results to a .nii file
+    sl_result = sl_result.astype('double')  # Convert the output into a precision format that can be used by other applications
+    sl_result[np.isnan(sl_result)] = 0  # Exchange nans with zero to ensure compatibility with other applications
+    fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
+    save_nii(sl_result, ref_img, fname)
+
+
+
+
 print(str(datetime.now()) + ": Begin rsa_sl.py")
 
 all_sub = []
@@ -81,9 +108,6 @@ sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
 
 # chicago face database measures
 all_cols = ['NodeID_study', 'Target', 'Race', 'Gender', 'Age', 'NumberofRaters', 'Female_prop', 'Male_prop', 'Asian_prop', 'Black_prop', 'Latino_prop', 'Multi_prop', 'Other_prop', 'White_prop', 'z', 'Angry', 'Attractive', 'Babyface', 'Disgusted', 'Dominant', 'Feminine', 'Happy', 'Masculine', 'Prototypic', 'Sad', 'Suitability', 'Surprised', 'Threatening', 'Trustworthy', 'Unusual', 'Luminance_median', 'Nose_Width', 'Nose_Length', 'Lip_Thickness', 'Face_Length', 'R_Eye_H', 'L_Eye_H', 'Avg_Eye_Height', 'R_Eye_W', 'L_Eye_W', 'Avg_Eye_Width', 'Face_Width_Cheeks', 'Face_Width_Mouth', 'Forehead', 'Pupil_Top_R', 'Pupil_Top_L', 'Asymmetry_pupil_top', 'Pupil_Lip_R', 'Pupil_Lip_L', 'Asymmetry_pupil_lip', 'BottomLip_Chin', 'Midcheek_Chin_R', 'Midcheek_Chin_L', 'Cheeks_avg', 'Midbrow_Hairline_R', 'Midbrow_Hairline_L', 'Faceshape', 'Heartshapeness', 'Noseshape', 'LipFullness', 'EyeShape', 'EyeSize', 'UpperHeadLength', 'MidfaceLength', 'ChinLength', 'ForeheadHeight', 'CheekboneHeight', 'CheekboneProminence', 'FaceRoundness', 'fWHR']
-
-#cfd_soc = ['Dominant', 'Trustworthy']
-#cfd_phys = ['Unusual', 'Faceshape']
 
 cfd_phys = ['Race', 'Gender', 'Age', 'Luminance_median', 'fWHR']
 cfd_soc = ['Angry', 'Attractive', 'Babyface', 'Disgusted', 'Dominant', 'Feminine', 'Happy', 'Masculine', 'Prototypic', 'Sad', 'Surprised', 'Threatening', 'Trustworthy', 'Unusual']
@@ -147,11 +171,10 @@ for s in all_sub:
         # subject's data
         data = sub_data
         # node labels
-        bcvar = range(N_NODES) #None
+        bcvar = 'None'#range(N_NODES) #None
         # searchlight radius
         sl_rad = int(SL_RADIUS)
         max_blk_edge = 5
-        pool_size = 1
         # mask
         if use_mask:
             # load all functional masks and make largest mask
@@ -172,11 +195,6 @@ for s in all_sub:
             mask = deepcopy(d)
             mask.fill(1)
 
-        # We will get back to these commands once we finish running a simple searchlight.
-        #comm = MPI.COMM_WORLD
-        #rank = comm.rank
-        #size = comm.size
-
         # Start the clock to time searchlight
         begin_time = time.time()
 
@@ -195,30 +213,7 @@ for s in all_sub:
         mks = model_keys if task == 'avg' else sn_rdms.keys()
         for i,k in enumerate(mks):
             model_rdm = model_rdms[k]
-            def calc_rsa(data, sl_mask, myrad, bcvar, model_mat=model_rdm):
-                data4D = data[0]
-                labels = bcvar
-                bolddata_sl = data4D.reshape(sl_mask.shape[0] * sl_mask.shape[1] * sl_mask.shape[2], data[0].shape[3]).T
-                roi_tri = pdist(bolddata_sl, metric='correlation')
-                roi_tri[np.isnan(roi_tri)] = 0.
-                rho, pval = spearmanr(roi_tri, model_mat)
-                return rho
+            run_searchlight_fun(sl, model_rdm)
 
-            print("Begin Searchlight\n")
-            sl_result = sl.run_searchlight(calc_rsa, pool_size=pool_size)
-            print("End Searchlight\n")
-
-            end_time = time.time()
-
-            # Print outputs
-            print("Number of searchlights run: " + str(len(sl_result[mask==1])))
-            print("Rho values for each kernel function: " +str(sl_result[mask==1].astype('double')))
-            print('Total searchlight duration (including start up time): %.2f' % (end_time - begin_time))
-
-            # Save the results to a .nii file
-            sl_result = sl_result.astype('double')  # Convert the output into a precision format that can be used by other applications
-            sl_result[np.isnan(sl_result)] = 0  # Exchange nans with zero to ensure compatibility with other applications
-            fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
-            save_nii(sl_result, ref_img, fname)
 
 print(str(datetime.now()) + ": End rsa_sl.py")

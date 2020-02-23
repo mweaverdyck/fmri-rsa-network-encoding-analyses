@@ -12,12 +12,20 @@ it was relevant than when it was not.
 print(str(datetime.now()) + ": Begin rsa_relevance.py")
 
 all_sub = []
+tasks=[]
+procedure=PROCEDURES[0]
 # read in arguments
 for arg in sys.argv[1:]:
+    print(arg)
     if arg in PROCEDURES_ALL:
         procedure = arg
+    elif arg in TASKS or arg == 'avg':
+        tasks += [arg]
     else:
         all_sub += [arg]
+
+if len(tasks) == 0:
+    tasks = ['avg'] + TASKS
 
 # overwrite previous csv files? If False, will read in csv and append
 overwrite = True
@@ -28,33 +36,6 @@ print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " +
 
 # set variables
 corr = 'corr'
-deg_label = 'deg'
-dist_label = 'dist'
-
-# subject-general predictors:
-deg = np.array([1, 4, 2, 2, 3, 4, 2, 3, 2, 3])
-dist_mat = np.array([
-       [0, 2, 3, 3, 3, 2, 3, 3, 3, 1],
-       [2, 0, 1, 1, 1, 2, 3, 3, 3, 1],
-       [3, 1, 0, 2, 1, 3, 4, 4, 4, 2],
-       [3, 1, 2, 0, 1, 3, 4, 4, 4, 2],
-       [3, 1, 1, 1, 0, 3, 4, 4, 4, 2],
-       [2, 2, 3, 3, 3, 0, 1, 1, 1, 1],
-       [3, 3, 4, 4, 4, 1, 0, 1, 2, 2],
-       [3, 3, 4, 4, 4, 1, 1, 0, 1, 2],
-       [3, 3, 4, 4, 4, 1, 2, 1, 0, 2],
-       [1, 1, 2, 2, 2, 1, 2, 2, 2, 0]])
-
-# Degree RDM
-deg_tri = make_model_RDM(deg)
-print(str(datetime.now()) + ": Degree RDM: ")
-print(squareform(deg_tri))
-
-# Distance RDM
-dist_tri = squareform(dist_mat)
-print(str(datetime.now()) + ": Distance RDM: ")
-print(dist_mat)
-
 # social network RDM dictionary
 sn_rdms = {deg_label: deg_tri, dist_label: dist_tri}
 
@@ -76,11 +57,11 @@ for s in all_sub:
 
     # calculate difference images
     data_rel = res_dict['number'][deg_label] - res_dict['friend'][deg_label]
-    fname = out_fname % (sub, corr_label, sub, 'rel', corr_label, parc_label, val_label, deg_label)
+    fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, deg_label)
     save_nii( data_rel, res_dict['ref_img'], fname )
 
     data_rel = res_dict['friend'][dist_label] - res_dict['number'][dist_label]
-    fname = out_fname % (sub, corr_label, sub, 'rel', corr_label, parc_label, val_label, dist_label)
+    fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, dist_label)
     save_nii( data_rel, res_dict['ref_img'], fname )
 
 print(str(datetime.now()) + ": End rsa_relevance.py")

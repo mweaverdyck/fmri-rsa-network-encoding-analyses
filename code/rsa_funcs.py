@@ -43,8 +43,11 @@ else:
 out_fname = out_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
 csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
 
-# for searchlight, use mask?
+# for searchlight
 use_mask = False
+bcvar = None #range(N_NODES)
+sl_rad = int(SL_RADIUS)
+max_blk_edge = 5
 
 # chicago face database measures
 cfd_phys1 = ['Race', 'Gender', 'Age', 'Luminance_median', 'fWHR']
@@ -58,6 +61,31 @@ cfd_soc = cfd_soc2 + cfd_emot
 deg_label = 'deg_cat-sn'
 dist_label = 'dist_cat-sn'
 dist2_label = 'dist2_cat-sn'
+
+
+# GENERAL FUNCTIONS
+def make_model_RDM( data_array , categorical=False):
+    # find number of nodes
+    n = len(data_array)
+    if n != N_NODES:
+        print("WARNING: number nodes entered ("+ str(n) +") is different than N_NODES ("+str(N_NODES)+"):")
+        print(data_array)
+    if isinstance(data_array[0], str):
+        categorical=True
+    # create empty matrix
+    mat = np.zeros([n,n])
+    # find pairwise difference between every element
+    for i in range(n):
+        for j in range(n):
+            if categorical:
+                # if data are categorical, enter 0 for same category, 1 for different
+                mat[i,j] = int(data_array[i] != data_array[j])
+            else:
+                # if data are quantitative, enter absolute difference
+                mat[i,j] = abs(data_array[i] - data_array[j])
+    # make squareform (upper diagonal elements)
+    tri = squareform(mat)
+    return tri
 
 # subject-general predictors:
 deg = np.array([1, 4, 2, 2, 3, 4, 2, 3, 2, 3])
@@ -87,43 +115,6 @@ print(dist_mat)
 # Second-Order Distance RDM
 print(str(datetime.now()) + ": Second-Order Distance RDM: ")
 print(squareform(dist2_tri))
-
-
-# STUDY-SPECIFIC
-def get_roi_csv_val(df, roi, val_col='r'):
-    # get rows for this roi
-    r = df.loc[df['roi']==roi]
-    # find corresponding stimulus file name
-    preds = np.array(r.loc[:,'predictor'])
-    out_dict = {}
-    for p in preds:
-        v = np.array(r.loc[r['predictor']==p,'r'])[0]
-        out_dict[p] = v
-    return(out_dict)
-
-# GENERAL FUNCTIONS
-def make_model_RDM( data_array , categorical=False):
-    # find number of nodes
-    n = len(data_array)
-    if n != N_NODES:
-        print("WARNING: number nodes entered ("+ str(n) +") is different than N_NODES ("+str(N_NODES)+"):")
-        print(data_array)
-    if isinstance(data_array[0], str):
-        categorical=True
-    # create empty matrix
-    mat = np.zeros([n,n])
-    # find pairwise difference between every element
-    for i in range(n):
-        for j in range(n):
-            if categorical:
-                # if data are categorical, enter 0 for same category, 1 for different
-                mat[i,j] = int(data_array[i] != data_array[j])
-            else:
-                # if data are quantitative, enter absolute difference
-                mat[i,j] = abs(data_array[i] - data_array[j])
-    # make squareform (upper diagonal elements)
-    tri = squareform(mat)
-    return tri
 
 def get_model_RDM_dict( node_mapping, meas_name_array,
                         df = None, fname=CFD_FNAME,
@@ -216,6 +207,19 @@ def run_rsa_searchlight(sl, model_mat, corr='corr', val_label=None):
     print(str(datetime.now())+ ": End Searchlight")
     return sl_result
 
+
+# STUDY-SPECIFIC
+def get_roi_csv_val(df, roi, val_col='r'):
+    # get rows for this roi
+    r = df.loc[df['roi']==roi]
+    # find corresponding stimulus file name
+    preds = np.array(r.loc[:,'predictor'])
+    out_dict = {}
+    for p in preds:
+        v = np.array(r.loc[r['predictor']==p,'r'])[0]
+        out_dict[p] = v
+    return(out_dict)
+
 def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None, pred=None):
     """
     sub: str subject ID
@@ -300,11 +304,6 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
         out_data_dict = {}
         if isSl(procedure):
             ref_img = sub_template
-            # node labels
-            bcvar = None #range(N_NODES) #None
-            # searchlight radius
-            sl_rad = int(SL_RADIUS)
-            max_blk_edge = 5
             # mask
             if use_mask:
                 # load all functional masks and make largest mask

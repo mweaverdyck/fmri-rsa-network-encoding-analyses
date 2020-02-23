@@ -52,7 +52,7 @@ for s in all_sub:
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    all_model_rdms = {**sn_rdms, **soc_rdms, **phys_rdms}
+    all_model_rdms = {**soc_rdms, **phys_rdms} # **sn_rdms
 
     try:
         procedure
