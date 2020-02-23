@@ -96,21 +96,20 @@ for proc in PROCEDURES:
             val_labels = ['r']
         for val_label in val_labels:
             print('Starting analysis of csv files matching: '+parc_label+' '+corr_label+' '+val_label)
-            out_fname = "_stat-"+STAT+"_corr-"+ corr_label+"_parc-"+ parc_label+"val-"+val_label+"_tail-1"
             # read in all subject files into single data frame
             for ts in task_sects:
                 if len(ts) == 0:
                     continue
                 data_fnames = []
                 for t in ts:
+                    in_fname_atts = OrderedDict({'task':t, 'space':SPACE,'stat':STAT, 'corr':corr_label, 'parc':parc_label, "val":val_label, "extra":"roi_stats"})
+                    in_fname = make_bids_str(in_fname_atts)
                     fnames = os.path.join(in_dir, "sub-*", corr_label,
-                                             "*task-"+t+"*_stat-"+ STAT+
-                                             "_corr-"+ corr_label+
-                                             "_parc-"+ parc_label+
-                                             "_roi_stats.csv")
+                                             "*"+in_fname+".csv")
                     d_fnames = glob.glob(fnames)
                     data_fnames += d_fnames
 
+                out_fname_atts = in_fname_atts
                 print('Reading in files: ')
                 print(data_fnames)
                 if len(data_fnames)==0:
@@ -202,13 +201,37 @@ for proc in PROCEDURES:
                     print(avg_df['FDR'][sigs])
 
                     # save output
-                    fname = out_dir+'parc-'+parc_label+'_pred-'+pred+'_test-%s_stat-'+STAT+'_corr-'+corr_label
-                    fname_csv = fname+'.csv'
-                    fname_nii = fname+'_p-%s'
+                    out_fname_atts['pred'] = pred
+                    #out_fname = os.path.join(out_dir, make_bids_str(in_fname_atts)+'.csv')
+                    out_fname_atts['dir'] = 'none'
                     if has_task:
-                        diff_df.to_csv(fname_csv % ('diff'))
-                        save_parcel(diff_df['FDR'], fname_nii % ('diff','FDR'))
-                        save_parcel(diff_df['p'], fname_nii % ('diff','uncorrected'))
-                    avg_df.to_csv(fname_csv % ('avg'))
-                    save_parcel(avg_df['FDR'], fname_nii % ('avg', 'FDR'))
-                    save_parcel(avg_df['p'], fname_nii % ('avg','uncorrected'))
+                        out_fname_atts['task'] = 'diff'
+                        out_fname_atts['val2'] = 'all'
+                        out_fname_atts['correction'] = 'all'
+                        del out_fname_atts['dir']
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
+                        diff_df.to_csv(out_fname)
+                        out_fname_atts['val2'] = 'p'
+                        out_fname_atts['dir'] = 'rev'
+                        out_fname_atts['correction'] = 'none'
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                        save_parcel(1-diff_df['p'], out_fname)
+                        out_fname_atts['correction'] = 'fdr'
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                        save_parcel(1-diff_df['FDR'], out_fname)
+
+                    del out_fname_atts['dir']
+                    out_fname_atts['task'] = 'avg'
+                    out_fname_atts['val2'] = 'all'
+                    out_fname_atts['correction'] = 'all'
+                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
+                    avg_df.to_csv(out_fname)
+
+                    out_fname_atts['val2'] = 'p'
+                    out_fname_atts['dir'] = 'rev'
+                    out_fname_atts['correction'] = 'none'
+                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                    save_parcel(1-avg_df['p'], out_fname)
+                    out_fname_atts['correction'] = 'fdr'
+                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                    save_parcel(1-avg_df['FDR'], out_fname)
