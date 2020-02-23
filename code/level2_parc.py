@@ -91,123 +91,124 @@ for proc in PROCEDURES:
         parc_label = str(N_PARCELS)
     for corr_label in corr_labels:
         if corr_label == 'reg':
-            val_label = 'beta'
+            val_labels = ['R2', 'beta']
         else:
-            val_label = 'r'
-        print('Starting analysis of csv files matching: '+parc_label+' '+corr_label)
-        out_fname = "_stat-"+STAT+"_corr-"+ corr_label+"_parc-"+ parc_label+"_tail-1"
-        # read in all subject files into single data frame
-        for ts in task_sects:
-            if len(ts) == 0:
-                continue
-            data_fnames = []
-            for t in ts:
-                fnames = os.path.join(in_dir, "sub-*", corr_label,
-                                         "*task-"+t+"*_stat-"+ STAT+
-                                         "_corr-"+ corr_label+
-                                         "_parc-"+ parc_label+
-                                         "_roi_stats.csv")
-                d_fnames = glob.glob(fnames)
-                data_fnames += d_fnames
+            val_labels = ['r']
+        for val_label in val_labels:
+            print('Starting analysis of csv files matching: '+parc_label+' '+corr_label+' '+val_label)
+            out_fname = "_stat-"+STAT+"_corr-"+ corr_label+"_parc-"+ parc_label+"val-"+val_label+"_tail-1"
+            # read in all subject files into single data frame
+            for ts in task_sects:
+                if len(ts) == 0:
+                    continue
+                data_fnames = []
+                for t in ts:
+                    fnames = os.path.join(in_dir, "sub-*", corr_label,
+                                             "*task-"+t+"*_stat-"+ STAT+
+                                             "_corr-"+ corr_label+
+                                             "_parc-"+ parc_label+
+                                             "_roi_stats.csv")
+                    d_fnames = glob.glob(fnames)
+                    data_fnames += d_fnames
 
-            print('Reading in files: ')
-            print(data_fnames)
-            if len(data_fnames)==0:
-                  print('no files found matching: '+fnames)
-                  continue
-            all_data = pd.concat((pd.read_csv(f) for f in data_fnames))
-            # drop row numbers
-            #all_data = all_data.iloc[:,1:]
-            orig_data = deepcopy(all_data)
+                print('Reading in files: ')
+                print(data_fnames)
+                if len(data_fnames)==0:
+                      print('no files found matching: '+fnames)
+                      continue
+                all_data = pd.concat((pd.read_csv(f) for f in data_fnames))
+                # drop row numbers
+                #all_data = all_data.iloc[:,1:]
+                orig_data = deepcopy(all_data)
 
-            # get predictors
-            predictors = pd.unique(all_data['predictor'])
-            print("Predictors found: ")
-            print(predictors)
+                # get predictors
+                predictors = pd.unique(all_data['predictor'])
+                print("Predictors found: ")
+                print(predictors)
 
-            if 'task' in all_data.columns:
-                has_task=True
-                # get tasks
-                tasks = pd.unique(all_data['task'])
-                print("Tasks found: ")
-                print(tasks)
-                if len(tasks)==1:
+                if 'task' in all_data.columns:
+                    has_task=True
+                    # get tasks
+                    tasks = pd.unique(all_data['task'])
+                    print("Tasks found: ")
+                    print(tasks)
+                    if len(tasks)==1:
+                        has_task=False
+                else:
                     has_task=False
-            else:
-                has_task=False
 
-            # get list of ROIs
-            rois = pd.unique(all_data['roi'])
-            print("Number of ROIs found: ")
-            print(len(rois))
+                # get list of ROIs
+                rois = pd.unique(all_data['roi'])
+                print("Number of ROIs found: ")
+                print(len(rois))
 
-            if has_task:
-                # separate tasks into 2 columns
-                all_data = all_data.pivot_table(index=['sub','roi','predictor'],
-                                                     columns='task', values=val_label)
-                # reset header
-                all_data.reset_index(inplace=True)
-                all_data.columns.name = ''
-                # calculate average across tasks
-                all_data['avg'] = (all_data['friend'] + all_data['number'])/2
-            else:
-                # for regression output, save values under "avg" heading
-                all_data['avg'] = all_data[val_label]
+                if has_task:
+                    # separate tasks into 2 columns
+                    all_data = all_data.pivot_table(index=['sub','roi','predictor'],
+                                                         columns='task', values=val_label)
+                    # reset header
+                    all_data.reset_index(inplace=True)
+                    all_data.columns.name = ''
+                    # calculate average across tasks
+                    all_data['avg'] = (all_data['friend'] + all_data['number'])/2
+                else:
+                    # for regression output, save values under "avg" heading
+                    all_data['avg'] = all_data[val_label]
 
-            pred_dfs = []
-            diff_dfs = []
-            avg_dfs = []
-            cnames = ['corr','test','estimate','pred','roi','t','df','p']
-            for pred in predictors:
-                print('Running one-way t-tests for predictor: '+pred)
-                # subselect predictor's rows
-                pred_df = all_data[all_data['predictor']==pred]
-                # initialize out dataframes
-                diff_df = pd.DataFrame(None, columns=cnames)
-                avg_df = pd.DataFrame(None, columns=cnames)
-                # iterate through parcels
-                for i,r in enumerate(rois):
-                    print("Testing parcel "+ str(r)+ " ("+str(i)+"/"+str(len(rois)) +")")
-                    df = pred_df[pred_df['roi']==r]
-                    # task-specific tests
-                    if has_task:
-                        if pred=='deg':
-                            rel_col = 'number'
-                            nonrel_col = 'friend'
-                        elif pred=='dist':
-                            rel_col = 'friend'
-                            nonrel_col = 'number'
-                        # run two-sample t-test
-                        t,p = ttest_rel(df[rel_col], df[nonrel_col])
-                        # correct to one-sample
+                pred_dfs = []
+                diff_dfs = []
+                avg_dfs = []
+                cnames = ['corr','test','estimate','pred','roi','t','df','p']
+                for pred in predictors:
+                    print('Running one-way t-tests for predictor: '+pred)
+                    # subselect predictor's rows
+                    pred_df = all_data[all_data['predictor']==pred]
+                    # initialize out dataframes
+                    diff_df = pd.DataFrame(None, columns=cnames)
+                    avg_df = pd.DataFrame(None, columns=cnames)
+                    # iterate through parcels
+                    for i,r in enumerate(rois):
+                        print("Testing parcel "+ str(r)+ " ("+str(i)+"/"+str(len(rois)) +")")
+                        df = pred_df[pred_df['roi']==r]
+                        # task-specific tests
+                        if has_task:
+                            if 'deg' in pred:
+                                rel_col = 'number'
+                                nonrel_col = 'friend'
+                            elif 'dist' in pred:
+                                rel_col = 'friend'
+                                nonrel_col = 'number'
+                            # run two-sample t-test
+                            t,p = ttest_rel(df[rel_col], df[nonrel_col])
+                            # correct to one-sample
+                            t,p = correct_p(t,p)
+                            # degrees of freedom
+                            t_df = len(df[rel_col]) - 1
+                            diff = np.mean(df[rel_col] - df[nonrel_col])
+                            diff_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
+                        # test where the predictor is encoded across tasks
+                        t,p = ttest_1samp(df['avg'], popmean = 0.)
+                        # correct p-value to one-sample
                         t,p = correct_p(t,p)
                         # degrees of freedom
-                        t_df = len(df[rel_col]) - 1
-                        diff = np.mean(df[rel_col] - df[nonrel_col])
-                        diff_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
-                    # test where the predictor is encoded across tasks
-                    t,p = ttest_1samp(df['avg'], popmean = 0.)
-                    # correct p-value to one-sample
-                    t,p = correct_p(t,p)
-                    # degrees of freedom
-                    t_df = len(df['avg']) - 1
-                    estimate=np.mean(df['avg'])
-                    avg_df.loc[r]=[corr_label,'avg',estimate,pred,r,t,t_df,p]
+                        t_df = len(df['avg']) - 1
+                        estimate=np.mean(df['avg'])
+                        avg_df.loc[r]=[corr_label,'avg',estimate,pred,r,t,t_df,p]
 
-                # correct full dataframe for multiple comparisons
-                if has_task:
-                    sigs, diff_df['FDR'], a, b = multipletests(diff_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
-                sigs, avg_df['FDR'], a, b = multipletests(avg_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
-                print(avg_df['FDR'][sigs])
+                    # correct full dataframe for multiple comparisons
+                    if has_task:
+                        sigs, diff_df['FDR'], a, b = multipletests(diff_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+                    sigs, avg_df['FDR'], a, b = multipletests(avg_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+                    print(avg_df['FDR'][sigs])
 
-                # save output
-                fname = out_dir+'parc-'+parc_label+'_pred-'+pred+'_test-%s_stat-'+STAT+'_corr-'+corr_label
-                fname_csv = fname+'.csv'
-                fname_nii = fname+'_p-%s'
-                if has_task:
-                    diff_df.to_csv(fname_csv % ('diff'))
-                    save_parcel(diff_df['FDR'], fname_nii % ('diff','FDR'))
-                    save_parcel(diff_df['p'], fname_nii % ('diff','uncorrected'))
-                avg_df.to_csv(fname_csv % ('avg'))
-                save_parcel(avg_df['FDR'], fname_nii % ('avg', 'FDR'))
-                save_parcel(avg_df['p'], fname_nii % ('avg','uncorrected'))
+                    # save output
+                    fname = out_dir+'parc-'+parc_label+'_pred-'+pred+'_test-%s_stat-'+STAT+'_corr-'+corr_label
+                    fname_csv = fname+'.csv'
+                    fname_nii = fname+'_p-%s'
+                    if has_task:
+                        diff_df.to_csv(fname_csv % ('diff'))
+                        save_parcel(diff_df['FDR'], fname_nii % ('diff','FDR'))
+                        save_parcel(diff_df['p'], fname_nii % ('diff','uncorrected'))
+                    avg_df.to_csv(fname_csv % ('avg'))
+                    save_parcel(avg_df['FDR'], fname_nii % ('avg', 'FDR'))
+                    save_parcel(avg_df['p'], fname_nii % ('avg','uncorrected'))

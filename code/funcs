@@ -63,7 +63,7 @@ export SPACE=${SPACES[0]}
 export STAT="t"
 export SL_RADIUS=4
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$SL
+export PROCEDURE=$ALL
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
@@ -96,16 +96,18 @@ alias get_outline='echo "To run full analysis:
 
     4. # first level analyses (from server)
        . run_script full ???
-       . run_script reconall fmriprep glm rsaall rsa_sl ???
+       . run_script reconall fmriprep glm rsa_all ???
 
-    5. # Quality Assurance tests (from mount)
-       R qa_motion.R
-       . run_script mriqc ???
-       [python3 qa_rm_nonsteadystates.py] (automatically runs with glm)
+    5. # second level analyses (from server)
+       qsub qsub_level2_rsa.sh
 
-    6. # second level analyses (from server)
-       qsub qsub_level2sl_py.sh
-       qsub qsub_level2ttestparc_py.sh
+    QA/Sanity Checks
+    # Quality Assurance tests (from mount)
+       python3 qa_motion.py
+       [python3 qa_nonsteadystates.py] (automatically runs with glm)
+    # Sanity Check - face vs. baseline (must use MNI space)
+       . run_script glm_face ???
+       qsub qsub_level2_face.sh
 "'
 
 get_index() {

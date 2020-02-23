@@ -41,7 +41,7 @@ else:
 
 # output file names
 out_fname = out_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_roi_stats.csv"
+csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_val-%s_roi_stats.csv"
 
 # for searchlight
 use_mask = False
@@ -302,7 +302,83 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
             sub_data[:,:,:,n] = d
 
         out_data_dict = {}
-        if isSl(procedure):
+        if isParc(procedure):
+            # out csv filename
+            sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label)
+            if (not overwrite) and os.path.isfile(sub_csv_fname):
+                    read_bool = True
+                    # read in csv if already exists
+                    sub_csv = pd.read_csv(sub_csv_fname)
+                    # remove row column
+                    sub_csv = sub_csv.iloc[:,1:]
+                    # save all completed ROIs except for last one (since may not have been finished)
+                    completed_rois = np.unique(sub_csv['roi'])[:-1]
+                    sub_csv = sub_csv[sub_csv['roi'].isin(completed_rois)]
+                    sub_csv.to_csv(sub_csv_fname)
+                    out_csv_array = sub_csv.values.tolist()
+            else:
+                if os.path.isfile(sub_csv_fname):
+                    os.remove(sub_csv_fname)
+                    print("Deleted "+sub_csv_fname)
+                read_bool = False
+                out_csv_array = []
+                completed_rois = []
+            wtr = csv.writer(open(sub_csv_fname, 'a'), delimiter=',', lineterminator='\n')
+            # column names for csv file
+            colnames = ['sub','task','roi','predictor',val_label]
+            if not read_bool:
+                # write out to csv
+                wtr.writerow(colnames)
+            ref_img = parcellation_template
+            # make mask
+            parcellation = sub_parc % (sub, sub)
+            print(str(datetime.now()) + ": Using parcellation " + parcellation)
+            parc_data = load_nii(parcellation)
+            roi_list = np.unique(parc_data)
+            # remove 0 (i.e., the background)
+            roi_list = np.delete(roi_list,0)
+            # check if number of parcels matches global variable
+            if N_PARCELS != len(roi_list):
+                print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
+
+            # Run regression on each parcellation
+            print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
+            # get the voxels from parcellation nii
+            out_data = ref_img.get_data().astype(np.double)
+            # create a dictionary of nii's: one per predictor
+            for i,k in enumerate(model_keys):
+                out_data_dict[k] = deepcopy(out_data)
+            # iterate through each ROI of parcellation and run regression
+            for r, parc_roi in enumerate(roi_list):
+                if parc_roi in completed_rois:
+                    print(str(datetime.now()) + ': ROI '+str(parc_roi)+' already saved.')
+                    # read in values from dataframe for nii
+                    res = get_roi_csv_val(sub_csv, parc_roi, val_label)
+                else:
+                    perc_done = round(((r+1) / len(roi_list)) * 100, 3)
+                    print(str(datetime.now()) + ': Analyzing ROI '+str(parc_roi)+' -- '+str(perc_done)+'%')
+                    # create mask for this ROI
+                    roi_mask = parc_data==parc_roi
+                    roi_mask = roi_mask.astype(int)
+                    roi_data = get_roi_data(sub_data, roi_mask)
+                    res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr, val_label=val_label)
+                    res = res_dict['result']
+                # for each model, save the result to its image in out_data_dict
+                for i,k in enumerate(model_keys):
+                    # save to dataframe if not already there
+                    if parc_roi not in completed_rois:
+                        val = res[i]
+                        csv_row = [sub, task, parc_roi, k, val]
+                        out_csv_array.append(csv_row)
+                        # write out to csv
+                        wtr.writerow(csv_row)
+                    else:
+                        val = res[i]
+                    # update voxels
+                    model_data = out_data_dict[k]
+                    model_data[model_data==parc_roi] = val
+                    out_data_dict[k] = model_data
+        elif isSl(procedure):
             ref_img = sub_template
             # mask
             if use_mask:
@@ -363,86 +439,11 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
 
                 out_data_dict[k] = out_data_dict[k].astype('double')
 
-        elif isParc(procedure):
-            # out csv filename
-            sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label)
-            if (not overwrite) and os.path.isfile(sub_csv_fname):
-                    read_bool = True
-                    # read in csv if already exists
-                    sub_csv = pd.read_csv(sub_csv_fname)
-                    # remove row column
-                    sub_csv = sub_csv.iloc[:,1:]
-                    # save all completed ROIs except for last one (since may not have been finished)
-                    completed_rois = np.unique(sub_csv['roi'])[:-1]
-                    sub_csv = sub_csv[sub_csv['roi'].isin(completed_rois)]
-                    sub_csv.to_csv(sub_csv_fname)
-                    out_csv_array = sub_csv.values.tolist()
-            else:
-                if os.path.isfile(sub_csv_fname):
-                    os.remove(sub_csv_fname)
-                    print("Deleted "+sub_csv_fname)
-                read_bool = False
-                out_csv_array = []
-                completed_rois = []
-            wtr = csv.writer(open(sub_csv_fname, 'a'), delimiter=',', lineterminator='\n')
-            # column names for csv file
-            colnames = ['sub','task','roi','predictor',val_label]
-            if not read_bool:
-                # write out to csv
-                wtr.writerow(colnames)
-            ref_img = parcellation_template
-            # make mask
-            parcellation = sub_parc % (sub, sub)
-            print(str(datetime.now()) + ": Using parcellation " + parcellation)
-            parc_data = load_nii(parcellation)
-            roi_list = np.unique(parc_data)
-            # remove 0 (i.e., the background)
-            roi_list = np.delete(roi_list,0)
-            # check if number of parcels matches global variable
-            if N_PARCELS != len(roi_list):
-                print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
-
-            # Run regression on each parcellation
-            print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
-            # get the voxels from parcellation nii
-            out_data = ref_img.get_data().astype(np.double)
-            # create a dictionary of nii's: one per predictor
-            for i,k in enumerate(model_keys):
-                out_data_dict[k] = deepcopy(out_data)
-            # iterate through each ROI of parcellation and run regression
-            for r, parc_roi in enumerate(roi_list):
-                if parc_roi in completed_rois:
-                    print(str(datetime.now()) + ': ROI '+str(parc_roi)+' already saved.')
-                    # read in values from dataframe for nii
-                    res = get_roi_csv_val(sub_csv, parc_roi, val_label)
-                else:
-                    perc_done = round(((r+1) / len(roi_list)) * 100, 3)
-                    print(str(datetime.now()) + ': Analyzing ROI '+str(parc_roi)+' -- '+str(perc_done)+'%')
-                    # create mask for this ROI
-                    roi_mask = parc_data==parc_roi
-                    roi_mask = roi_mask.astype(int)
-                    roi_data = get_roi_data(sub_data, roi_mask)
-                    res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr)
-                    res = res_dict['result']
-                # for each model, save the result to its image in out_data_dict
-                for i,k in enumerate(model_keys):
-                    # save to dataframe if not already there
-                    if parc_roi not in completed_rois:
-                        val = res[i]
-                        csv_row = [sub, task, parc_roi, k, val]
-                        out_csv_array.append(csv_row)
-                        # write out to csv
-                        wtr.writerow(csv_row)
-                    else:
-                        val = res[k]
-                    # update voxels
-                    model_data = out_data_dict[k]
-                    model_data[model_data==parc_roi] = val
-                    out_data_dict[k] = model_data
-        # save images
-        for k in out_data_dict.keys():
-            fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
-            save_nii( out_data_dict[k], ref_img, fname )
+            # unindent if saving images in parcellation (in addition to csv)
+            # save images
+            for k in out_data_dict.keys():
+                fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
+                save_nii( out_data_dict[k], ref_img, fname )
         # add to output array
         out_tasks[task] = out_data_dict
         out_tasks['ref_img'] = ref_img

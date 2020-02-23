@@ -48,20 +48,21 @@ for s in all_sub:
     print(str(datetime.now()) + ": Reading in data for subject " + sub)
 
     # run rsa
-    res_dict = run_rsa_sub(sub=sub, model_rdms=sn_rdms, procedure=procedure, corr=corr, overwrite=overwrite)
+    res_dict = run_rsa_sub(sub=sub, tasks=tasks, model_rdms=sn_rdms, procedure=procedure, corr=corr, overwrite=overwrite)
 
     # get labels
     corr_label = 'spear' if corr=='corr' else 'reg'
     val_label = 'r' if corr=='corr' else 'beta'
     parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
 
-    # calculate difference images
-    data_rel = res_dict['number'][deg_label] - res_dict['friend'][deg_label]
-    fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, deg_label)
-    save_nii( data_rel, res_dict['ref_img'], fname )
+    if 'number' in tasks and 'friend' in tasks:
+        # calculate difference images
+        data_rel = res_dict['number'][deg_label] - res_dict['friend'][deg_label]
+        fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, deg_label)
+        save_nii( data_rel, res_dict['ref_img'], fname )
 
-    data_rel = res_dict['friend'][dist_label] - res_dict['number'][dist_label]
-    fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, dist_label)
-    save_nii( data_rel, res_dict['ref_img'], fname )
+        data_rel = res_dict['friend'][dist_label] - res_dict['number'][dist_label]
+        fname = out_fname % (sub, corr_label, sub, 'diff', corr_label, parc_label, val_label, dist_label)
+        save_nii( data_rel, res_dict['ref_img'], fname )
 
 print(str(datetime.now()) + ": End rsa_relevance.py")

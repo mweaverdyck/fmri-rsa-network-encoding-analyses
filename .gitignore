@@ -1,6 +1,6 @@
 .*DS*
 code/not_used
 ._*
-code/to_delete*
+code/*delete*
 *.pyc
 code/core*
