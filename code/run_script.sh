@@ -45,14 +45,14 @@ for arg in "$@"; do
       subs=( $arg $2)
     elif [[ $arg == "full" ]]; then
       # run full first level analysis
-      scripts=( qsub_reconall.sh qsub_fmriprep.sh qsub_glm.sh qsub_rsa.sh qsub_rsaregs.sh )
+      scripts=( qsub_reconall.sh qsub_fmriprep.sh qsub_glm.sh qsub_rsa_all.sh )
     else
       # not a subject
       if [[ $arg != qsub* ]] && [[ $arg != /*.sh ]]; then arg=qsub_"$arg".sh; fi
       if [[ ! -f $arg ]]; then
         echo "ERROR: $arg is not a subject or a script. Skipping"
       else
-        scripts=( $scripts $arg )
+        scripts=( ${scripts[@]} $arg )
         echo $arg 'script added to list:' "${scripts[@]}"
       fi
     fi
