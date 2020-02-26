@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 import nibabel as nib
 import numpy as np
-from scipy.stats import norm, ttest_rel, ttest_ind, ttest_1samp
+from scipy.stats import norm, ttest_rel, ttest_ind, ttest_1samp, rankdata
 from statsmodels.stats.multitest import multipletests
 from scipy.ndimage.morphology import binary_dilation
 from nilearn.image import math_img
@@ -23,6 +23,7 @@ from nistats.thresholding import map_threshold
 from funcs import *
 #from rsa_funcs import *
 
+
 def run_sig_tests(data_fnames, mask=None):
     cmap = "Wistia"
     second_level_model = SecondLevelModel(smoothing_fwhm=5.0, mask=mask)
@@ -31,6 +32,7 @@ def run_sig_tests(data_fnames, mask=None):
         data_fnames_fri = sorted(data_fnames['friend'])
         fname_atts = get_all_bids_atts(data_fnames_num[0])
         fname_atts['task'] = 'diff'
+        fname_atts['test'] = 'pairedt'
         # create paired t-test design matrix
         pair_mat = np.zeros((2*len(data_fnames_num),len(data_fnames_num)+1), dtype=int)
         labs = []
@@ -53,6 +55,7 @@ def run_sig_tests(data_fnames, mask=None):
         con_name = 'diff'
     else:
         fname_atts = get_all_bids_atts(data_fnames[0])
+        fname_atts['test'] = 'singlesamplet'
         design_matrix = pd.DataFrame([1] * len(data_fnames),
                                  columns=['intercept'])
         con_name = 'intercept'
@@ -142,6 +145,7 @@ parc_label = 'sl' + SL_RADIUS
 corrs=['spear', 'reg']
 preds_all = ['deg', 'dist', 'sn', 'soc', 'phys'] #+ cfd_soc + cfd_phys
 corr_labels = []
+tasks_all = TASKS + ['avg']
 tasks=[]
 preds=[]
 # read in arguments
@@ -149,16 +153,16 @@ for arg in sys.argv[1:]:
     print(arg)
     if arg in corrs:
         corr_labels += [arg]
-    elif arg in TASKS or arg == 'avg':
+    elif arg in tasks_all+['diff']:
         tasks += [arg]
     elif arg in preds_all:
         preds += [arg]
 
 if len(corr_labels) == 0:
-    corr_labels = ['spear']
+    corr_labels = ['spear', 'reg']
 
 if len(tasks) == 0:
-    tasks = TASKS + ['avg']
+    tasks = tasks_all
 
 if len(preds) == 0:
     preds = preds_all
@@ -181,19 +185,23 @@ for corr_label in corr_labels:
     in_dir = os.path.join(RSA_DIR,'*',corr_label)
     if SPACE=='T1w':
         in_dir = os.path.join(in_dir,'T1w-2-MNI')
-    for pred in preds:
-        print('starting predictor '+pred)
-        data_tasks = {}
-        for task in tasks:
-            print("starting task "+task)
-            fnames = os.path.join(in_dir, '*task-'+task+'*space-'+SPACE+'*_parc-'+parc_label+'_*val-r_*pred-'+pred+'*.nii*')
-            data_fnames = glob.glob(fnames)
-            if len(data_fnames) != 0:
-                if task in TASKS:
-                    data_tasks[task] = data_fnames
-                    print(data_tasks)
-                run_sig_tests(data_fnames, mask = gm_mask_dil_img)
-        if pred in ['deg', 'dist'] and 'number' in data_tasks.keys() and 'friend' in data_tasks.keys():
-            run_sig_tests(data_tasks, mask = gm_mask_dil_img)
+    corr_vals = ['r'] if corr_label == 'spear' else ['R2', 'beta']
+    for val_label in corr_vals:
+        print('starting val_label '+val_label)
+        for pred in preds:
+            print('starting predictor '+pred)
+            data_tasks = {}
+            for task in tasks:
+                print("starting task "+task)
+                fnames = os.path.join(in_dir, '*task-'+task+'*space-'+SPACE+'*_parc-'+parc_label+'_*val-'+val_label+'_*pred-'+pred+'*.nii*')
+                data_fnames = glob.glob(fnames)
+                print(fnames)
+                if len(data_fnames) != 0:
+                    if task in TASKS:
+                        data_tasks[task] = data_fnames
+                        print(data_tasks)
+                    run_sig_tests(data_fnames, mask = gm_mask_dil_img)
+            if pred in ['deg', 'dist'] and 'number' in data_tasks.keys() and 'friend' in data_tasks.keys():
+                run_sig_tests(data_tasks, mask = gm_mask_dil_img)
 
 print(str(datetime.now()) + ": End level2_rsa_sl.py")

@@ -60,20 +60,21 @@ def FDR( x, n=None ):
 
 corrs=['spear', 'reg']
 corr_labels = []
+tasks_all = TASKS + ['avg','diff']
 tasks=[]
 # read in arguments
 for arg in sys.argv[1:]:
     print(arg)
     if arg in corrs:
         corr_labels += [arg]
-    elif arg in TASKS or arg == 'avg':
+    elif arg in tasks_all:
         tasks += [arg]
 
 if len(corr_labels) == 0:
     corr_labels = corrs
 
 if len(tasks) == 0:
-    tasks = TASKS + ['avg']
+    tasks = tasks_all
 
 task_sects = [[],[]]
 for t in tasks:
@@ -206,6 +207,7 @@ for proc in PROCEDURES:
                     out_fname_atts['dir'] = 'none'
                     if has_task:
                         out_fname_atts['task'] = 'diff'
+                        out_fname_atts['test'] = 'pairedt'
                         out_fname_atts['val2'] = 'all'
                         out_fname_atts['correction'] = 'all'
                         del out_fname_atts['dir']
@@ -222,6 +224,7 @@ for proc in PROCEDURES:
 
                     del out_fname_atts['dir']
                     out_fname_atts['task'] = 'avg'
+                    out_fname_atts['test'] = 'singlesamplet'
                     out_fname_atts['val2'] = 'all'
                     out_fname_atts['correction'] = 'all'
                     out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')

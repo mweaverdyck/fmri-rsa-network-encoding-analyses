@@ -21,7 +21,7 @@ if len(tasks) == 0:
     tasks = ['avg']
 
 # overwrite previous csv files? If False, will read in csv and append
-overwrite = True
+overwrite_start = True
 print(str(datetime.now()) + ": Analyzing " + str(len(all_sub)) + " subjects: " + str(all_sub))
 
 # set variables
@@ -62,8 +62,10 @@ for s in all_sub:
     # run rsa
     for procedure in procedures:
         for task in tasks:
+            overwrite = overwrite_start
             for key in all_model_rdms:
                 model_rdms = all_model_rdms[key]
                 run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task, val_label=val_label, pred=key)
+                overwrite = False
 
 print(str(datetime.now()) + ": End rsa_R2.py")

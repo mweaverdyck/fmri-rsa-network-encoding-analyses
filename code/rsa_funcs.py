@@ -58,9 +58,12 @@ cfd_phys = cfd_phys1 + cfd_soc1
 cfd_soc = cfd_soc2 + cfd_emot
 
 # social network measures
-deg_label = 'deg_cat-sn'
-dist_label = 'dist_cat-sn'
-dist2_label = 'dist2_cat-sn'
+deg_lab = 'deg'
+dist_lab = 'dist'
+dist2_lab = 'dist2'
+deg_label = deg_lab + '_cat-sn'
+dist_label = dist_lab + '_cat-sn'
+dist2_label = dist2_lab + '_cat-sn'
 
 
 # GENERAL FUNCTIONS
@@ -312,10 +315,11 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
                     # remove row column
                     sub_csv = sub_csv.iloc[:,1:]
                     # save all completed ROIs except for last one (since may not have been finished)
-                    completed_rois = np.unique(sub_csv['roi'])[:-1]
+                    completed_rois = np.unique(sub_csv['roi'])
                     sub_csv = sub_csv[sub_csv['roi'].isin(completed_rois)]
                     sub_csv.to_csv(sub_csv_fname)
                     out_csv_array = sub_csv.values.tolist()
+                    completed_preds = np.unique(sub_csv['predictor'])
             else:
                 if os.path.isfile(sub_csv_fname):
                     os.remove(sub_csv_fname)
@@ -323,6 +327,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
                 read_bool = False
                 out_csv_array = []
                 completed_rois = []
+                completed_preds = []
             wtr = csv.writer(open(sub_csv_fname, 'a'), delimiter=',', lineterminator='\n')
             # column names for csv file
             colnames = ['sub','task','roi','predictor',val_label]
@@ -350,7 +355,8 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
                 out_data_dict[k] = deepcopy(out_data)
             # iterate through each ROI of parcellation and run regression
             for r, parc_roi in enumerate(roi_list):
-                if parc_roi in completed_rois:
+                roi_done = parc_roi in completed_rois and all(mk in completed_preds for mk in model_keys)
+                if roi_done:
                     print(str(datetime.now()) + ': ROI '+str(parc_roi)+' already saved.')
                     # read in values from dataframe for nii
                     res = get_roi_csv_val(sub_csv, parc_roi, val_label)
@@ -366,7 +372,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
                 # for each model, save the result to its image in out_data_dict
                 for i,k in enumerate(model_keys):
                     # save to dataframe if not already there
-                    if parc_roi not in completed_rois:
+                    if not roi_done:
                         val = res[i]
                         csv_row = [sub, task, parc_roi, k, val]
                         out_csv_array.append(csv_row)

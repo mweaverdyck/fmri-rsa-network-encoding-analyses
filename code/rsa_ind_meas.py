@@ -5,22 +5,38 @@ from rsa_funcs import *
 print(str(datetime.now()) + ": Begin rsa_ind_meas.py")
 
 # read in arguments
-
+preds_all = cfd_phys + cfd_soc + [deg_lab, dist_lab, dist2_lab]
 all_sub = []
+tasks_all = ['avg'] + TASKS
 tasks=[]
+preds = []
 # read in arguments
 for arg in sys.argv[1:]:
     print(arg)
     if arg in PROCEDURES_ALL:
         procedure = arg
-    elif arg in TASKS or arg == 'avg':
+    elif arg in tasks_all:
         tasks += [arg]
+    elif arg in preds_all:
+        preds += [arg]
     else:
         all_sub += [arg]
 
 if len(tasks) == 0:
-    tasks = TASKS
+    tasks = tasks_all
 
+if len(preds) == 0:
+    preds = preds_all
+
+# for i, pred in enumerate(preds):
+#     if pred == deg_lab:
+#         preds[i] = deg_label
+#     elif pred == dist_lab:
+#         preds[i] = dist_label
+#     elif pred == dist2_lab:
+#         preds[i] = dist2_label
+
+print(preds)
 # overwrite previous csv files? If False, will read in csv and append
 overwrite = True
 
@@ -52,7 +68,12 @@ for s in all_sub:
                                    out_key='phys')
 
     # combine all predictor RDM dictionaries
-    all_model_rdms = {**soc_rdms, **phys_rdms} # **sn_rdms
+    all_model_rdms = {**soc_rdms, **phys_rdms, **sn_rdms}
+    sel_model_rdms = {}
+    for m in all_model_rdms.keys():
+        if m in preds or m.split('_')[0] in preds:
+            print("Selecting " + m)
+            sel_model_rdms[m] = all_model_rdms[m]
 
     try:
         procedure
@@ -60,11 +81,12 @@ for s in all_sub:
         procedures = PROCEDURES
     else:
         procedures = [procedure]
+
     # run rsa
     for procedure in procedures:
         for task in tasks:
             if task == 'avg':
-                model_rdms = all_model_rdms
+                model_rdms = sel_model_rdms
             elif task in TASKS:
                 model_rdms = sn_rdms
             run_rsa_sub(sub=sub, model_rdms=model_rdms, procedure=procedure, corr=corr, overwrite=overwrite, tasks=task)
