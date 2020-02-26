@@ -27,7 +27,7 @@ mkdir -p "${out_dir}"
 
 for procedure in "${PROCEDURES[@]}"; do
   write_log $log_args "Running procedure: ${procedure}"
-  if [[ $procedure -eq $SL ]]; then
+  if [[ $procedure == $SL ]]; then
     . transform_T1w-2-mni.sh $ALL
   fi
   python3 level2_${procedure}.py $@
