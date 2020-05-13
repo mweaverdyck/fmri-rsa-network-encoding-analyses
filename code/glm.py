@@ -32,9 +32,7 @@ space_label = SPACE
 tasks = ['friend','number']
 nodes = range(N_NODES)
 
-out_dir = GLM_DIR
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
+out_dir = get_thresh_dir(GLM_DIR)
 
 # ## ----------------------- fmriprep 1.2.0 regressors ----------------------------
 # col_regressors_fixed = [
@@ -67,6 +65,10 @@ col_regressors_prefs_min = [] #['non_steady_state_outlier']
 
 for subj in subject_ids:
     print("Starting subject "+str(subj))
+
+    # exclude runs based on threshold
+    exclude_runs(subj)
+
     derivatives_dir_sub = derivatives_prefix + subj + '/'
     if not os.path.exists(derivatives_dir_sub):
         os.makedirs(derivatives_dir_sub)

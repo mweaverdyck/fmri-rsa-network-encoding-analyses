@@ -1,6 +1,7 @@
 #!/bin/python
 # funcs.py
 import os
+import sys
 from os.path import expanduser
 HOME = expanduser("~")
 import glob
@@ -8,6 +9,8 @@ import pandas as pd
 import csv
 import nibabel as nib
 import numpy as np
+import copy
+import shutil
 from datetime import datetime
 from collections import OrderedDict
 
@@ -38,6 +41,7 @@ RSA_DIR = os.environ['RSA_DIR'] + '/'
 MNI_DIR = os.environ['MNI_DIR'] + '/'
 
 # get project variables
+EXCLUDE_RUNS_THRESH = float(os.environ['EXCLUDE_RUNS_THRESH'])
 SUBID_PREFIX = os.environ['SUBID_PREFIX']
 N_NODES = int(os.environ['N_NODES'])
 NODES = list(range(N_NODES))
@@ -121,6 +125,13 @@ def save_nii( data, refnii, filename ):
     out_img = nib.Nifti1Image(data, refnii.affine, refnii.header)
     out_img.to_filename(filename)
     print(str(datetime.now()) + ": File %s saved." % filename)
+
+def get_thresh_dir( dir_func ):
+    if EXCLUDE_RUNS_THRESH != 0:
+        dir_func = os.path.join(dir_func, "excl-%02d" % (EXCLUDE_RUNS_THRESH*100))
+    if not os.path.exists(dir_func):
+        os.makedirs(dir_func)
+    return dir_func
 
 def get_node_mapping( sub ):
     sub = convert2subid(sub)
@@ -214,3 +225,62 @@ def get_roi_data(data, mask):
         # remove 0s and save to roi_data by row
         roi_data[n,:] = roi_data_node[roi_data_node != 0]
     return(roi_data)
+
+def exclude_runs(sid):
+    sid = convert2subid(sid)
+    events_dir = os.path.join(BIDS_DIR, sid, 'func')
+    derivs_dir = os.path.join(DERIVS_DIR, sid, 'func')
+    # define exclude folders
+    exclude_events_dir = os.path.join(events_dir,"exclude")
+    exclude_derivs_dir = os.path.join(derivs_dir, 'exclude')
+    # make exclude directories
+    if not os.path.exists(exclude_events_dir):
+        os.makedirs(exclude_events_dir)
+    if not os.path.exists(exclude_derivs_dir):
+        os.makedirs(exclude_derivs_dir)
+    # move events that are currently in exclude back to func
+    move_fnames = glob.glob(os.path.join(exclude_events_dir, "*events.tsv"))
+    for f in move_fnames:
+        shutil.move(f, events_dir)
+    move_fnames = glob.glob(os.path.join(exclude_derivs_dir, "*?.???*"))
+    for f in move_fnames:
+        shutil.move(f, derivs_dir)
+    if EXCLUDE_RUNS_THRESH != 0:
+        # get all events files
+        events_fnames = glob.glob(os.path.join(events_dir, "*events.tsv"))
+        acc_df = pd.DataFrame(events_fnames, columns=["filename"])
+        acc_df["accuracy"] = np.nan
+        pass_colname = "pass_%02d"%(EXCLUDE_RUNS_THRESH*100)
+        acc_df[pass_colname] = True
+        for f in events_fnames:
+            # read events file
+            df = pd.read_csv(f, sep='\t')
+            # calculate accuracy
+            acc = df.mean(axis=0, skipna=True)['correct']
+            print("Accuracy for file "+f+" = "+str(acc))
+            acc_df.loc[acc_df['filename'] == f, ['accuracy']] = acc
+            # if under threshold, move to exclude
+            if acc < EXCLUDE_RUNS_THRESH:
+                # save fail to dataframe
+                acc_df.loc[acc_df['filename'] == f, [pass_colname]] = False
+                # move file to exclude folder
+                shutil.move(f, exclude_events_dir)
+                # get run
+                run_label = get_bids_att(f, 'run')
+                nii_fnames = glob.glob(os.path.join(derivs_dir, "*run-"+run_label+"*space-"+SPACE+"_rmtr-6_desc-preproc_bold.nii.gz"))
+                regs_fnames = glob.glob(os.path.join(derivs_dir, "*run-"+run_label+"*_rmtr-6_regressors.tsv"))
+                if len(nii_fnames) != 1 or len(regs_fnames) != 1:
+                    print("ERROR: not exactly 1 nii or regression file found. skipping...")
+                    print(os.path.join(derivs_dir, "*run-"+run_label+"*space-"+SPACE+"_rmtr-6_desc-preproc_bold.nii.gz"))
+                    print(os.path.join(derivs_dir, "*run-"+run_label+"*_rmtr-6_regressors.tsv"))
+                else:
+                    print("Moving these files to exclude directories")
+                    shutil.move(nii_fnames[0], exclude_derivs_dir)
+                    shutil.move(regs_fnames[0], exclude_derivs_dir)
+                print(f)
+                print(nii_fnames)
+                print(regs_fnames)
+        # write accuracy dataframe
+        f = os.path.join(events_dir,"run_accuracy_exclthresh-%02d.csv"%(EXCLUDE_RUNS_THRESH*100))
+        acc_df.to_csv(f, index=False)
+        print(f + ' saved.')

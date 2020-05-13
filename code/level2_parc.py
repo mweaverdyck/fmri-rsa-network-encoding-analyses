@@ -42,20 +42,20 @@ def correct_p (t,p):
     else:
         p = p/2
     return(t,p)
-
-def FDR( x, n=None ):
-    """
-    Assumes a list or numpy array x which contains p-values for multiple tests
-    Copied from p.adjust function from R
-    """
-    if n is None:
-        n = len(x)
-    o = [ i[0] for i in sorted(enumerate(x), key=lambda v:v[1],reverse=True) ]
-    ro = [ i[0] for i in sorted(enumerate(o), key=lambda v:v[1]) ]
-    q = sum([1.0/i for i in range(1,n+1)])
-    l = [ q*len(x)/i*x[j] for i,j in zip(reversed(range(1,n+1)),o) ]
-    l = [ l[k] if l[k] < 1.0 else 1.0 for k in ro ]
-    return l
+#
+# def FDR( x, n=None ):
+#     """
+#     Assumes a list or numpy array x which contains p-values for multiple tests
+#     Copied from p.adjust function from R
+#     """
+#     if n is None:
+#         n = len(x)
+#     o = [ i[0] for i in sorted(enumerate(x), key=lambda v:v[1],reverse=True) ]
+#     ro = [ i[0] for i in sorted(enumerate(o), key=lambda v:v[1]) ]
+#     q = sum([1.0/i for i in range(1,n+1)])
+#     l = [ q*len(x)/i*x[j] for i,j in zip(reversed(range(1,n+1)),o) ]
+#     l = [ l[k] if l[k] < 1.0 else 1.0 for k in ro ]
+#     return l
 
 
 corrs=['spear', 'reg']
@@ -80,10 +80,8 @@ task_sects = [[],[]]
 for t in tasks:
     task_sects[t in TASKS] = task_sects[t in TASKS] + [t]
 
-
-
-in_dir = RSA_DIR
-out_dir = SECOND_LEVEL_DIR
+in_dir = get_thresh_dir(RSA_DIR)
+out_dir = get_thresh_dir( os.path.join(SECOND_LEVEL_DIR,'parc' + str(N_PARCELS)) )
 
 for proc in PROCEDURES:
     if proc == SL:
@@ -109,24 +107,24 @@ for proc in PROCEDURES:
                                              "*"+in_fname+".csv")
                     d_fnames = glob.glob(fnames)
                     data_fnames += d_fnames
-
+                ############################################################
                 out_fname_atts = in_fname_atts
-                print('Reading in files: ')
-                print(data_fnames)
                 if len(data_fnames)==0:
                       print('no files found matching: '+fnames)
                       continue
+                print('Reading in files: ')
+                print(data_fnames)
                 all_data = pd.concat((pd.read_csv(f) for f in data_fnames))
                 # drop row numbers
                 #all_data = all_data.iloc[:,1:]
                 orig_data = deepcopy(all_data)
-
+                ############################################################
                 # get predictors
                 predictors = pd.unique(all_data['predictor'])
                 print("Predictors found: ")
                 print(predictors)
-
-                if 'task' in all_data.columns:
+                ############################################################
+                if len(pd.unique(all_data['task'])) > 1: #in all_data.columns:
                     has_task=True
                     # get tasks
                     tasks = pd.unique(all_data['task'])
@@ -136,12 +134,12 @@ for proc in PROCEDURES:
                         has_task=False
                 else:
                     has_task=False
-
+                ############################################################
                 # get list of ROIs
                 rois = pd.unique(all_data['roi'])
                 print("Number of ROIs found: ")
                 print(len(rois))
-
+                ############################################################
                 if has_task:
                     # separate tasks into 2 columns
                     all_data = all_data.pivot_table(index=['sub','roi','predictor'],
@@ -149,23 +147,24 @@ for proc in PROCEDURES:
                     # reset header
                     all_data.reset_index(inplace=True)
                     all_data.columns.name = ''
-                    # calculate average across tasks
-                    all_data['avg'] = (all_data['friend'] + all_data['number'])/2
+                    ## calculate average across tasks
+                    #all_data['avg'] = (all_data['friend'] + all_data['number'])/2
                 else:
                     # for regression output, save values under "avg" heading
                     all_data['avg'] = all_data[val_label]
-
-                pred_dfs = []
-                diff_dfs = []
-                avg_dfs = []
+                ############################################################
+                # pred_dfs = []
+                # diff_dfs = []
+                # avg_dfs = []
                 cnames = ['corr','test','estimate','pred','roi','t','df','p']
                 for pred in predictors:
                     print('Running one-way t-tests for predictor: '+pred)
                     # subselect predictor's rows
                     pred_df = all_data[all_data['predictor']==pred]
                     # initialize out dataframes
-                    diff_df = pd.DataFrame(None, columns=cnames)
-                    avg_df = pd.DataFrame(None, columns=cnames)
+                    con_df = pd.DataFrame(None, columns=cnames)
+                    #diff_df = pd.DataFrame(None, columns=cnames)
+                    #avg_df = pd.DataFrame(None, columns=cnames)
                     # iterate through parcels
                     for i,r in enumerate(rois):
                         print("Testing parcel "+ str(r)+ " ("+str(i)+"/"+str(len(rois)) +")")
@@ -185,22 +184,23 @@ for proc in PROCEDURES:
                             # degrees of freedom
                             t_df = len(df[rel_col]) - 1
                             diff = np.mean(df[rel_col] - df[nonrel_col])
-                            diff_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
-                        # test where the predictor is encoded across tasks
-                        t,p = ttest_1samp(df['avg'], popmean = 0.)
-                        # correct p-value to one-sample
-                        t,p = correct_p(t,p)
-                        # degrees of freedom
-                        t_df = len(df['avg']) - 1
-                        estimate=np.mean(df['avg'])
-                        avg_df.loc[r]=[corr_label,'avg',estimate,pred,r,t,t_df,p]
-
+                            con_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
+                        else:
+                            # test where the predictor is encoded across tasks
+                            t,p = ttest_1samp(df['avg'], popmean = 0.)
+                            # correct p-value to one-sample
+                            t,p = correct_p(t,p)
+                            # degrees of freedom
+                            t_df = len(df['avg']) - 1
+                            estimate=np.mean(df['avg'])
+                            con_df.loc[r]=[corr_label,'avg',estimate,pred,r,t,t_df,p]
+                    ############################################################
                     # correct full dataframe for multiple comparisons
-                    if has_task:
-                        sigs, diff_df['FDR'], a, b = multipletests(diff_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
-                    sigs, avg_df['FDR'], a, b = multipletests(avg_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
-                    print(avg_df['FDR'][sigs])
-
+                    # if has_task:
+                    #     sigs, con_df['FDR'], a, b = multipletests(con_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+                    sigs, con_df['FDR'], a, b = multipletests(con_df['p'], alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+                    print(con_df['FDR'][sigs])
+                    ############################################################
                     # save output
                     out_fname_atts['pred'] = pred
                     #out_fname = os.path.join(out_dir, make_bids_str(in_fname_atts)+'.csv')
@@ -212,29 +212,30 @@ for proc in PROCEDURES:
                         out_fname_atts['correction'] = 'all'
                         del out_fname_atts['dir']
                         out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
-                        diff_df.to_csv(out_fname)
+                        con_df.to_csv(out_fname)
                         out_fname_atts['val2'] = 'p'
                         out_fname_atts['dir'] = 'rev'
                         out_fname_atts['correction'] = 'none'
                         out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                        save_parcel(1-diff_df['p'], out_fname)
+                        save_parcel(con_df['p'], out_fname)
                         out_fname_atts['correction'] = 'fdr'
                         out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                        save_parcel(1-diff_df['FDR'], out_fname)
-
-                    del out_fname_atts['dir']
-                    out_fname_atts['task'] = 'avg'
-                    out_fname_atts['test'] = 'singlesamplet'
-                    out_fname_atts['val2'] = 'all'
-                    out_fname_atts['correction'] = 'all'
-                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
-                    avg_df.to_csv(out_fname)
-
-                    out_fname_atts['val2'] = 'p'
-                    out_fname_atts['dir'] = 'rev'
-                    out_fname_atts['correction'] = 'none'
-                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                    save_parcel(1-avg_df['p'], out_fname)
-                    out_fname_atts['correction'] = 'fdr'
-                    out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                    save_parcel(1-avg_df['FDR'], out_fname)
+                        save_parcel(con_df['FDR'], out_fname)
+                    else:
+                        # save csv
+                        del out_fname_atts['dir']
+                        out_fname_atts['task'] = 'avg'
+                        out_fname_atts['test'] = 'singlesamplet'
+                        out_fname_atts['val2'] = 'all'
+                        out_fname_atts['correction'] = 'all'
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
+                        con_df.to_csv(out_fname)
+                        # save p map niftis
+                        out_fname_atts['val2'] = 'p'
+                        out_fname_atts['dir'] = 'rev'
+                        out_fname_atts['correction'] = 'none'
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                        save_parcel(con_df['p'], out_fname)
+                        out_fname_atts['correction'] = 'fdr'
+                        out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                        save_parcel(con_df['FDR'], out_fname)

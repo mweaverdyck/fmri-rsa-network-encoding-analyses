@@ -19,29 +19,30 @@ from funcs import *
 
 
 # DIRECTORIES
-in_dir = RSA_DIR + '%s/'
-out_dir = RSA_DIR + '%s/%s/' #%(sub, corr_label)
+in_dir = os.path.join(RSA_DIR, '%s/')
+out_dir = get_thresh_dir(RSA_DIR)
+out_dir = os.path.join(out_dir, '%s','%s/') #%(sub, corr_label)
 print(str(datetime.now()) + ": Project directory = " + PROJECT_DIR)
 print(str(datetime.now()) + ": Input directory = " + in_dir)
 print(str(datetime.now()) + ": Output directory = " + out_dir)
 
 # FILENAMES
 # subject's data images
-data_fnames = GLM_DIR + '%s/%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.nii'#%(sub, sub,task,node)
+data_fnames = os.path.join(get_thresh_dir(GLM_DIR), '%s','%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_node-%02d.nii')#%(sub, sub,task,node)
 # subject's mask
-sub_mask_fname = in_dir + '%s_desc-brain_mask_dil-5.nii.gz'
+sub_mask_fname = os.path.join(in_dir, '%s_desc-brain_mask_dil-5.nii.gz')
 # parcellation
 # standard parcellation filename
 parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
 if SPACE == 'T1w':
     # parcellation in subject's space
-    sub_parc = in_dir + parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii'
+    sub_parc = os.path.join(in_dir, parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii')
 else:
     sub_parc = MNI_PARCELLATION
 
 # output file names
-out_fname = out_dir + '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz' #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
-csv_fname = out_dir + "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_val-%s_roi_stats.csv"
+out_fname = os.path.join(out_dir, '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz') #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
+csv_fname = os.path.join(out_dir, "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_val-%s_roi_stats.csv")
 
 # for searchlight
 use_mask = False
@@ -56,6 +57,7 @@ cfd_soc2 = ['Attractive', 'Dominant', 'Threatening', 'Trustworthy']
 cfd_emot = ['Angry', 'Disgusted', 'Happy', 'Sad', 'Surprised']
 cfd_phys = cfd_phys1 + cfd_soc1
 cfd_soc = cfd_soc2 + cfd_emot
+cfd_img = cfd_phys1 + cfd_soc1 + cfd_soc2 + cfd_emot
 
 # social network measures
 deg_lab = 'deg'
@@ -64,6 +66,7 @@ dist2_lab = 'dist2'
 deg_label = deg_lab + '_cat-sn'
 dist_label = dist_lab + '_cat-sn'
 dist2_label = dist2_lab + '_cat-sn'
+sn_labels = [deg_label, dist_label, dist2_label]
 
 
 # GENERAL FUNCTIONS
@@ -155,9 +158,12 @@ def ortho_mat(model_mat):
     model_mat,R = np.linalg.qr(model_mat)
     return(model_mat)
 
-def rsa_reg(neural_v, model_mat, val_label=None):
+def rsa_reg(neural_v, model_mat, val_label=None, rank_order=True):
     # orthogonalize
     model_mat = ortho_mat(model_mat)
+    if rank_order:
+        neural_v = np.argsort(neural_v, axis=0)
+        model_mat = np.argsort(model_mat, axis=0)
     # add column of ones (constant)
     X=np.hstack((model_mat, np.ones((model_mat.shape[0],1))))
     # Convert neural DSM to column vector
@@ -288,6 +294,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
     out_tasks = {}
     # iterate through inputted tasks
     for task in tasks:
+        print(str(datetime.now()) + ": Task " + task)
         # read in subject's image
         sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
         sub_dims = sub_template.get_data().shape + (N_NODES,)

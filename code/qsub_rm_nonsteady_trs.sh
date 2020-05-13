@@ -26,13 +26,13 @@ suffix="_desc-preproc_bold"
 # remove TRs from beginning of each preprocessed run
 for sub in "${subs[@]}"; do
   sub_dir="${in_dir}/${sub}/func"
+  sub_outdir="${out_dir}/${sub}/func"
+  mkdir -p ${sub_outdir}
+  # move all images from exclude directory
+  mv ${sub_outdir}/exclude/* ${sub_outdir}/
   in_imgs="$(ls -f ${sub_dir}/${sub}_task-??????_run-??_space-${SPACE}${suffix}.nii.gz)"
   for in_img in ${in_imgs[@]}; do
     fname="$(basename ${in_img} ${suffix}.nii.gz)"
-
-    sub_outdir="${out_dir}/${sub}/func"
-    mkdir -p ${sub_outdir}
-
     out_img_bname="${fname}_rmtr-${N_TRS_DEL}${suffix}"
     out_img="${sub_outdir}/${out_img_bname}"
     write_log $log_args "Checking if ${out_img}.nii.gz exists"

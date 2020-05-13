@@ -39,6 +39,13 @@ for dir in all_fmriprep_dirs:
         print(paste('Excluding subject ', sub))
       else:
         raw_sub_dir = os.path.join(BIDS_DIR,sub,'func')
+        # move files from exclude to parent folder
+        move_fnames = glob.glob(os.path.join(raw_sub_dir, 'exclude', "*events.tsv"))
+        for f in move_fnames:
+            shutil.move(f, raw_sub_dir)
+        move_fnames = glob.glob(os.path.join(out_dir, 'exclude', "*?.???*"))
+        for f in move_fnames:
+            shutil.move(f, out_dir)
         #events_fnames = glob.glob(os.path.join(raw_sub_dir, '*tsv'))
         # find all tsv files for this subject
         confound_fnames = glob.glob(os.path.join(FMRIPREP_DIR,sub,'func','*tsv'))
@@ -60,7 +67,11 @@ for dir in all_fmriprep_dirs:
           out_fname = os.path.join(out_dir, sub, 'func',
                                     make_bids_str(out_fname_components) +
                                     '.' + confound_basef.split('.')[-1])
-          confound_df_out.to_csv(out_fname, sep='\t')
+          # remove unnamed columns
+          cols = [c for c in confound_df_out.columns if c[:7] != 'Unnamed']
+          confound_df_out = confound_df_out[cols]
+          # write to file
+          confound_df_out.to_csv(out_fname, sep='\t', index=False)
           print(out_fname + " saved")
           #out_fname = paste0(substr(confound_basef, 1, 41), '_rmtr-', as.character(N_TRS_DEL), substr(confound_basef, 42, 56))
           #readr::write_tsv(confound_df_out, path = paste0(out_dir,'/',sub,'/func/', out_fname))
@@ -71,6 +82,7 @@ for dir in all_fmriprep_dirs:
           events_f = glob.glob(os.path.join(raw_sub_dir, sub+'*task-'+t+'*run-'+r+'*tsv'))
           if len(events_f) != 1:
               print("ERROR: "+str(len(events_f))+ " event files found: ")
+              print(os.path.join(raw_sub_dir, sub+'*task-'+t+'*run-'+r+'*tsv'))
               print(events_f)
           else:
               events_f = events_f[0]
@@ -115,7 +127,11 @@ for dir in all_fmriprep_dirs:
           # events_df['onset_corrected_by_sub'] = events_df['onset'] - nonsteady_time
 
           events_df['onset_corrected'] = events_df['onset'] - (N_TRS_DEL * TR)
-          events_df.to_csv(events_f, sep='\t')
+          # remove unnamed columns
+          cols = [c for c in events_df.columns if c[:7] != 'Unnamed']
+          events_df = events_df[cols]
+          # write to file
+          events_df.to_csv(events_f, sep='\t', index=False)
           print(events_f + " saved")
 
         # # append subject's dataframe to all_dfs
