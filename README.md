@@ -29,7 +29,7 @@ Session 2:
 
 Participants completed all 4 of the above tasks again (shortened versions) and then were scanned.
 Scanning protocol:
-8 runs: 4 runs of each question/task (number and friend). Runs were blocked so first 4 was one question,
+8 runs: 4 runs of each task (i.e., question: number and friend). Runs were blocked so first 4 was one question,
 the last 4 were the other. The order was counterbalanced across subjects (odd vs even subject numbers).
 
 mprage anatomical
@@ -48,8 +48,20 @@ Auto Align used for all sequences (HCP version)
 Analysis:
 
 Convert neuro data to BIDS using custom script (see code/ folder)
+
 Use fmriprep to preprocess data (see settings in run_fmriprep.sh)
+
 Project variables and functions are sourced from funcs
+
+Use Nistats first level glm model to create contrasts (1 per node per task per subject)
+
+Can use Schaeffer2018 parcellations or brainIAK searchlight to run RSA analysis comparing
+patterns of neural activity with social network features (i.e., degree, geodesic distance)
+and stimulus-based features from the Chicago Face Database (cfd) ratings, which were
+divided into physical and social categories.
+
+Use Nistats second level model to run t-test at each voxel/parcel and correct with FDR
+
 For outline of analysis steps, type:  
 
     source funcs

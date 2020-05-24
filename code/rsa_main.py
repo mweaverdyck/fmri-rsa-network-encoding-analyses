@@ -60,7 +60,7 @@ for s in all_sub:
         # get labels
         corr_label = 'spear' if corr=='corr' else 'reg'
         val_label = 'r' if corr=='corr' else 'beta'
-        parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
+        parc_label = SL+str(SL_RADIUS) if isSl(procedure) else PARC_LAB
 
         # calculate and save difference images
         if save_diff_imgs and 'number' in tasks and 'friend' in tasks:

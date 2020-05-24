@@ -10,13 +10,15 @@ fmriprep_v=fmriprep/1.4.0 #1.3.2
 EXCLUDE_SUBS=( "204" )
 # exclude all runs that fall below (<) this threshold
 # keep all runs that are >= to this threshold
-export EXCLUDE_RUNS_THRESH=0.65 # 0, .65, .75
+export EXCLUDE_RUNS_THRESH=0 # 0, .65, .75
 
 # keywords
 export ALL='all'
 export NEW='new'
 export PARC='parc'
 export SL='sl'
+export MNI_SPACE="MNI152NLin2009cAsym"
+export T1_SPACE="T1w"
 
 # Global Project Variables
 # directories
@@ -52,29 +54,48 @@ export NODES=( {0..9} ) # conditions
 export N_NODES=10 # number of conditions
 export TR=0.75 # tr in seconds
 export N_TRS=514 # total number of TRS collected
-export N_TRS_DEL=6 # remove this number of TRs from beginning of each run
+export N_TRS_DEL=3 # remove this number of TRs from beginning of each run
 export SL_RADIUS=4 # size of searchlight radius in voxels
-export N_PARCELS=200 # number of ROIs in parcellation
-export N_NETWORKS=7
-export MNI_SPACE="MNI152NLin2009cAsym"
-export T1_SPACE="T1w"
-export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
-export MNI_GM_MASK="${MNI_DIR}/anat/2mm_tpm_gm.nii.gz"
-export MNI_MASK="${MNI_DIR}/anat/2mm_brainmask.nii.gz"
-export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
+export DILATE=5
 export SPACES=( $T1_SPACE $MNI_SPACE ) #( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
 export SMOOTH_FWMH=6
-export N_PERMS=5000
+export N_PERMS=10000
 export VAR_SMOOTH=10
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$ALL
+export PROCEDURE=$PARC
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
   export PROCEDURES=( $PROCEDURE )
 fi
+
+parc_lab='fun' #sch=schaefer, fun=functional
+export N_PARCELS=200 # number of ROIs in parcellation; use 'funcparc' for functional parcellation
+export N_NETWORKS=7
+if [[ $parc_lab -eq "fun" ]]; then
+  export N_PARCELS=200 # currently only have 200 parcel version
+  export MNI_PARCELLATION="${MNI_DIR}/functional_parcellation_200/whole_brain_cluster_labels_PCA-100_k-200_order-orig_flirt-sch200_round-T.nii.gz"
+else
+  parc_lab='sch' # currently only other option
+  export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+fi
+export PARC_LAB="${parc_lab}${N_PARCELS}"
+
+export MNI_GM_MASK="${MNI_DIR}/anat/2mm_tpm_gm.nii.gz"
+export MNI_MASK="${MNI_DIR}/anat/2mm_brainmask.nii.gz"
+export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
+export SOCIAL_MAP="${CODE_DIR}/social_association-test_z_FDR_0.01"
+export SOCIAL_MASK_DIL="${SOCIAL_MAP}_binary_dil-${DILATE}.nii.gz"
+export MASK_NAME="social"
+if [[ $MASK_NAME == 'social' ]]; then
+  export MASK="${SOCIAL_MASK_DIL}"
+else
+  export MASK="${MNI_MASK_DIL}"
+fi
+
+
 
 # filenames
 export CFD_FNAME="${CODE_DIR}/CFD_measures.csv"

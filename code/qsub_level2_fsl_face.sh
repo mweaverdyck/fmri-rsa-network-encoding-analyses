@@ -33,26 +33,28 @@ for s in ${subs[@]}; do
   prefix="${s}_"
   # find full file name
   sub_dir=${in_dir}/${s}/
-  fname=( $(ls -f ${sub_dir}/${prefix}task-??????_space-${MNI_SPACE}_stat-t_node-all${suffix}) )
-  # if [[ ${#fname[@]} -ne 1 ]]; then
-  #   write_log $log_args "WARNING: Subject does not have exactly one image: ${fname[@]} Skipping..."
-  # else
-  write_log $log_args "Reading in subject $s, file: ${fname[@]}"
-  # add to array
-  sub_imgs+=( "${fname[@]}" )
-  # if first subject, save output file name
-  if [[ $first_sub -eq 1 ]]; then
-    # get filename only (no path)
-    fname=$(basename ${fname})
-    # remove subject prefix
-    fname=${fname#"${prefix}"}
-    # remove file extension suffix
-    fname=${fname%"${suffix}"}
-    fname_root=$fname
-    # add 4D and suffix back on and
-    # save full output filename
-    out_fname=${out_dir}/${fname_root}_4D
-    first_sub=0
+  if [ -d "${sub_dir}" ]; then
+    fname=( $(ls -f ${sub_dir}/${prefix}task-??????_space-${MNI_SPACE}_stat-t_node-all${suffix}) )
+    # if [[ ${#fname[@]} -ne 1 ]]; then
+    #   write_log $log_args "WARNING: Subject does not have exactly one image: ${fname[@]} Skipping..."
+    # else
+    write_log $log_args "Reading in subject $s, file: ${fname[@]}"
+    # add to array
+    sub_imgs+=( "${fname[@]}" )
+    # if first subject, save output file name
+    if [[ $first_sub -eq 1 ]]; then
+      # get filename only (no path)
+      fname=$(basename ${fname})
+      # remove subject prefix
+      fname=${fname#"${prefix}"}
+      # remove file extension suffix
+      fname=${fname%"${suffix}"}
+      fname_root=$fname
+      # add 4D and suffix back on and
+      # save full output filename
+      out_fname=${out_dir}/${fname_root}_4D
+      first_sub=0
+    fi
   fi
 done
 

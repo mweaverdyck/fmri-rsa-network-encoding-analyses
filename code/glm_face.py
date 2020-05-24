@@ -63,10 +63,14 @@ col_regressors_prefs_all = [
 col_regressors_prefs_min = [] #['non_steady_state_outlier']
 # delete TRs based on these columns
 
-
+EXCLUDE_RUNS_THRESH = 0
 
 for subj in subject_ids:
     print("Starting subject "+str(subj))
+
+    # exclude runs based on threshold
+    exclude_runs(subj)
+
     derivatives_dir_sub = derivatives_prefix + subj + '/'
     if not os.path.exists(derivatives_dir_sub):
         os.makedirs(derivatives_dir_sub)

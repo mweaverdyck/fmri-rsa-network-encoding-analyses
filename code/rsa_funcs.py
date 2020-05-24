@@ -41,7 +41,7 @@ else:
     sub_parc = MNI_PARCELLATION
 
 # output file names
-out_fname = os.path.join(out_dir, '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz') #% (sub, task, corr, N_PARCELS, "r" or "b", predictor_name)
+out_fname = os.path.join(out_dir, '%s_task-%s_space-'+SPACE+'_stat-'+STAT+'_corr-%s_parc-%s_val-%s_pred-%s.nii.gz') #% (sub, task, corr, PARC_LAB, "r" or "b", predictor_name)
 csv_fname = os.path.join(out_dir, "%s_task-%s_space-"+SPACE+"_stat-"+STAT+"_corr-%s_parc-%s_val-%s_roi_stats.csv")
 
 # for searchlight
@@ -248,7 +248,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
         print("ERROR: cannot calculate R2 with corr label '"+corr+"'. Must be 'reg'")
         exit(1)
 
-    parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
+    parc_label = SL+str(SL_RADIUS) if isSl(procedure) else PARC_LAB
     # make output directories if they don't exist
     if not os.path.exists(out_dir % (sub, corr_label)):
         os.makedirs(out_dir % (sub, corr_label))

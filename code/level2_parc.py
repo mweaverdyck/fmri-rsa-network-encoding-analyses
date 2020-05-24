@@ -81,13 +81,13 @@ for t in tasks:
     task_sects[t in TASKS] = task_sects[t in TASKS] + [t]
 
 in_dir = get_thresh_dir(RSA_DIR)
-out_dir = get_thresh_dir( os.path.join(SECOND_LEVEL_DIR,'parc' + str(N_PARCELS)) )
+out_dir = get_thresh_dir( os.path.join(SECOND_LEVEL_DIR,'parc-' + PARC_LAB) )
 
 for proc in PROCEDURES:
     if proc == SL:
         parc_label = SL
     else:
-        parc_label = str(N_PARCELS)
+        parc_label = PARC_LAB
     for corr_label in corr_labels:
         if corr_label == 'reg':
             val_labels = ['R2', 'beta']

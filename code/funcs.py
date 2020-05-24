@@ -19,6 +19,8 @@ ALL = os.environ['ALL']
 NEW = os.environ['NEW']
 PARC = os.environ['PARC']
 SL = os.environ['SL']
+MNI_SPACE = os.environ['MNI_SPACE']
+T1_SPACE = os.environ['T1_SPACE']
 
 # arrays that must be manually updated
 EXCLUDE_SUBS=["204"]
@@ -50,8 +52,7 @@ TR = float(os.environ['TR'])
 N_TRS_DEL = int(os.environ['N_TRS_DEL'])
 N_PARCELS = int(os.environ['N_PARCELS'])
 N_NETWORKS = int(os.environ['N_NETWORKS'])
-MNI_SPACE=os.environ['MNI_SPACE']
-T1_SPACE=os.environ['T1_SPACE']
+PARC_LAB = os.environ['PARC_LAB']
 MNI_PARCELLATION = os.environ['MNI_PARCELLATION']
 MNI_GM_MASK = os.environ['MNI_GM_MASK']
 MNI_MASK = os.environ['MNI_MASK']

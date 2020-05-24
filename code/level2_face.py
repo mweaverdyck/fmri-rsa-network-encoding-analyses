@@ -80,12 +80,22 @@ out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
 nib.save(neg_log_pval, out_fname)
 print(out_fname + ' saved.')
 # FDR correction
+test_indices = np.argwhere(mni_mask_dil_img.get_data().flatten()).flatten()
 p_arr = p_val.get_data().flatten()
-sigs, fdr_val, a, b = multipletests(p_arr, alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+p_arr2 = np.take(p_arr, test_indices)
+sigs2, fdr_val2, a2, b2 = multipletests(p_arr2, alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
+pfdr2 = deepcopy(1-fdr_val2)
+pfdr_arr = deepcopy(p_arr)
+np.put(pfdr_arr, test_indices, pfdr2)
+pfdr_3d2 = pfdr_arr.reshape(p_val.shape)
+#p_arr = p_val.get_data().flatten()
+#sigs, fdr_val, a, b = multipletests(p_arr, alpha=.05, method='fdr_bh', is_sorted=False, returnsorted=False)
 fname_atts['val2'] = "p"
 fname_atts['correction'] = "fdr"
+fname_atts['dir'] = 'rev'
 out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
-save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
+save_nii(data = pfdr_3d2, refnii=p_val, filename=out_fname)
+#save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
 
 # from nistats.second_level_model import non_parametric_inference
 # neg_log_pvals_permuted_ols_unmasked = \

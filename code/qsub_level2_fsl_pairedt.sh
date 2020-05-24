@@ -4,7 +4,7 @@
 #$ -o joblogs/level2fsl.$JOB_ID.log
 #$ -j y
 #$ -pe shared 4
-#$ -l h_rt=3:59:00,h_data=4G
+#$ -l h_rt=11:59:00,h_data=4G
 # Notify when
 #$ -m ae
 #
@@ -85,26 +85,28 @@ for pred in "${preds[@]}"; do
         prefix="${s}_task-${t}_"
         # find full file name
         sub_dir=${in_dir}/${s}/${corr}${sdata_dir}
-        fname=( $(ls -f ${sub_dir}/${prefix}space-${SPACE}_*parc-sl${SL_RADIUS}*pred-${pred}*${suffix}) )
-        if [[ ${#fname[@]} -ne 1 ]]; then
-          write_log $log_args "WARNING: Subject does not have exactly one image: ${fname[@]} Skipping..."
-        else
-          write_log $log_args "Reading in subject $s, file: $fname"
-          # add to array
-          sub_imgs+=( "${fname}" )
-          # if first subject, save output file name
-          if [[ $first_sub -eq 1 ]]; then
-            # get filename only (no path)
-            fname=$(basename ${fname})
-            # remove subject prefix
-            fname=${fname#"${prefix}"}
-            # remove file extension suffix
-            fname=${fname%"${suffix}"}
-            fname_root=$fname
-            # add 4D and suffix back on and
-            # save full output filename
-            out_fname=${out_dir}/${fname_root}_4D
-            first_sub=0
+        if [ -d "${sub_dir}" ]; then
+          fname=( $(ls -f ${sub_dir}/${prefix}space-${SPACE}_*parc-sl${SL_RADIUS}*pred-${pred}*${suffix}) )
+          if [[ ${#fname[@]} -ne 1 ]]; then
+            write_log $log_args "WARNING: Subject does not have exactly one image: ${fname[@]} Skipping..."
+          else
+            write_log $log_args "Reading in subject $s, file: $fname"
+            # add to array
+            sub_imgs+=( "${fname}" )
+            # if first subject, save output file name
+            if [[ $first_sub -eq 1 ]]; then
+              # get filename only (no path)
+              fname=$(basename ${fname})
+              # remove subject prefix
+              fname=${fname#"${prefix}"}
+              # remove file extension suffix
+              fname=${fname%"${suffix}"}
+              fname_root=$fname
+              # add 4D and suffix back on and
+              # save full output filename
+              out_fname=${out_dir}/${fname_root}_4D
+              first_sub=0
+            fi
           fi
         fi
       done
@@ -129,9 +131,9 @@ for pred in "${preds[@]}"; do
 
     # run permuatation t-test
     #vox_thresh=1.645 #2.33 # z-score to get p<0.01
-    out_t_test=${out_dir}/task-diff_${fname_root}_smooth-${SMOOTH_FWMH}_test-pairedt_vsmooth-${VAR_SMOOTH}_nperm-${N_PERMS} #_vthresh-${vox_thresh}
+    out_t_test=${out_dir}/task-diff_${fname_root}_mask-${MASK_NAME}_smooth-${SMOOTH_FWMH}_test-pairedt_vsmooth-${VAR_SMOOTH}_nperm-${N_PERMS} #_vthresh-${vox_thresh}
     # http://web.mit.edu/fsl_v5.0.10/fsl/doc/wiki/Randomise(2f)UserGuide.html
-    randomise -i ${img_4D_smooth} -m ${MNI_MASK_DIL} -o ${out_t_test} -d ${design}.mat -t ${contrast}.con -e ${group}.grp -v ${VAR_SMOOTH} -T -x -n ${N_PERMS} --uncorrp -D | tee -a $log_file # -C ${vox_thresh}
+    randomise -i ${img_4D_smooth} -m ${MASK} -o ${out_t_test} -d ${design}.mat -t ${contrast}.con -e ${group}.grp -v ${VAR_SMOOTH} -T -x -n ${N_PERMS} --uncorrp -D | tee -a $log_file # -C ${vox_thresh}
 
     write_log $log_args "Files ${out_t_test}* saved."
 

@@ -50,4 +50,4 @@ if [[ $SPACE == 'T1w' ]]; then
   done
 fi
 
-write_log $log_args_tmp "Done."
+log_end $log_args_tmp

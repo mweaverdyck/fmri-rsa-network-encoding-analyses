@@ -24,6 +24,8 @@ from funcs import *
 from rsa_funcs import cfd_soc, cfd_phys
 
 
+out_dir = SECOND_LEVEL_DIR
+
 def run_sig_tests(data_fnames, mask=None):
     cmap = "Wistia"
     second_level_model = SecondLevelModel(smoothing_fwhm=5.0, mask=mask)
@@ -74,7 +76,7 @@ def run_sig_tests(data_fnames, mask=None):
     second_level_model = second_level_model.fit(data_fnames,
                            design_matrix=design_matrix)
     z_map = second_level_model.compute_contrast(con_name, output_type='z_score')
-    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+    out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
     nib.save(z_map, out_fname)
     print(out_fname + ' saved.')
     threshold = 2.88 #3.1  # correponds to  p < .001, uncorrected
@@ -85,7 +87,7 @@ def run_sig_tests(data_fnames, mask=None):
     # save p map
     p_val = second_level_model.compute_contrast(con_name, output_type='p_value')
     fname_atts['val2'] = "p"
-    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+    out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
     nib.save(p_val, out_fname)
     print(out_fname + ' saved.')
     # correct for multiple comparisons
@@ -96,7 +98,7 @@ def run_sig_tests(data_fnames, mask=None):
             img=p_val)
     fname_atts['val2'] = "p"
     fname_atts['correction'] = "parametric"
-    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+    out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
     nib.save(neg_log_pval, out_fname)
     print(out_fname + ' saved.')
     # FDR correction
@@ -109,7 +111,7 @@ def run_sig_tests(data_fnames, mask=None):
     fname_atts['val2'] = "p"
     fname_atts['correction'] = "fdr"
     fname_atts['dir'] = "rev"
-    out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+    out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
     nib.save(pfdr_map, out_fname)
     print(out_fname + ' saved.')
     #save_nii(data = fdr_val.reshape(p_val.shape), refnii=p_val, filename=out_fname)
@@ -128,14 +130,14 @@ def run_sig_tests(data_fnames, mask=None):
         fname_atts['val2'] = "z"
         fname_atts['thresh'] = "p05"
         fname_atts['plot'] = "statmap"
-        out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+        out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
         display = plot_stat_map(z_map, title='Raw z map, expected fdr = .05')
         display = plot_stat_map(thresholded_map2, cut_coords=display.cut_coords,
                    title='Thresholded z map, expected fdr = .05, z = '+str(threshold2),
                    threshold=threshold2)
         display.savefig(out_fname)
         fname_atts['plot'] = "glassbrain"
-        out_fname = os.path.join(SECOND_LEVEL_DIR, SL, make_bids_str(fname_atts))
+        out_fname = os.path.join(out_dir, make_bids_str(fname_atts))
         display = plot_glass_brain(thresholded_map2, cut_coords=display.cut_coords,
                    title='Thresholded z map, expected fdr = .05, z = '+str(threshold2),
                    threshold=threshold2)
@@ -143,7 +145,7 @@ def run_sig_tests(data_fnames, mask=None):
 
 parc_label = 'sl' + SL_RADIUS
 corrs=['spear', 'reg']
-preds_all = cfd_soc + cfd_phys + ['deg', 'dist', 'sn', 'soc', 'phys']
+preds_all = cfd_soc + cfd_phys + ['deg', 'dist', 'sn', 'img', 'soc', 'phys']
 corr_labels = []
 tasks_all = TASKS + ['avg']
 tasks=[]
@@ -170,8 +172,6 @@ if len(preds) == 0:
 task_sects = [[],[]]
 for t in tasks:
     task_sects[t in TASKS] = task_sects[t in TASKS] + [t]
-
-out_dir = SECOND_LEVEL_DIR
 
 # dilate gray matter mask
 tmp = nib.load(MNI_GM_MASK)
