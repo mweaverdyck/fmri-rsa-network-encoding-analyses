@@ -15,20 +15,17 @@ set -e
 source funcs
 setup_modules ${python_v}
 
-label='LEVEL2_RSA'
+label='LEVEL2_RSA_R2'
 in_dir=${RSA_DIR}
-out_dir=${SECOND_LEVEL_DIR}/parc-${PARC_LAB}
+out_dir="${SECOND_LEVEL_DIR}"
 
 begin_script -l ${label} -i ${in_dir} -o ${out_dir} -f subid "all"
 log_args="$LOG_ARGS"
 
-procedure=$PARC # no longer using level2_sl.py because does not correct for multiple comparisons correctly
+write_log $log_args "Analyzing subjects: ${SUBS[@]}"
+mkdir -p "${out_dir}"
+. transform_T1w-2-mni.sh $ALL
+python3 level2_R2_sl.py $@
 
-write_log $log_args "Running procedure: ${procedure}"
-if [[ $procedure == $SL ]]; then
-  . transform_T1w-2-mni.sh $ALL
-fi
-
-python3 level2_${procedure}.py $@
 
 log_end $log_args

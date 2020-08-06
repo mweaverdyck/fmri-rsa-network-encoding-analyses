@@ -35,7 +35,6 @@ for procedure in "${PROCEDURES[@]}"; do
   write_log $log_args "Running RSA"
   python3 rsa_main.py ${procedure} ${subs[@]} | tee -a $log_file
   #python3 rsa_ind_meas.py ${procedure} ${subs[@]} | tee -a $log_file
-  #python3 rsa_R2.py ${procedure} ${subs[@]} | tee -a $log_file
   write_log $log_args "Finished RSA"
 
 done

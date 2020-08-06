@@ -1,7 +1,7 @@
 #!/bin/python
 # runs regression between neural data and various model predictors
-from scipy.spatial.distance import pdist, squareform
-from scipy.stats import spearmanr, pearsonr, norm, zscore
+from scipy.spatial.distance import pdist, squareform, mahalanobis, euclidean
+from scipy.stats import spearmanr, pearsonr, norm, zscore, rankdata
 from scipy.ndimage.morphology import binary_dilation
 from brainiak.searchlight.searchlight import Searchlight, Ball
 from brainiak.fcma.preprocessing import prepare_searchlight_mvpa_data
@@ -21,7 +21,7 @@ from funcs import *
 # DIRECTORIES
 in_dir = os.path.join(RSA_DIR, '%s/')
 out_dir = get_thresh_dir(RSA_DIR)
-out_dir = os.path.join(out_dir, '%s','%s/') #%(sub, corr_label)
+out_dir = os.path.join(out_dir, '%s', '%s', '%s/') #%(sub, corr_label, dist)
 print(str(datetime.now()) + ": Project directory = " + PROJECT_DIR)
 print(str(datetime.now()) + ": Input directory = " + in_dir)
 print(str(datetime.now()) + ": Output directory = " + out_dir)
@@ -33,7 +33,7 @@ data_fnames = os.path.join(get_thresh_dir(GLM_DIR), '%s','%s_task-%s_space-'+SPA
 sub_mask_fname = os.path.join(in_dir, '%s_desc-brain_mask_dil-5.nii.gz')
 # parcellation
 # standard parcellation filename
-parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.')[0]
+parcellation_fname = os.path.basename(MNI_PARCELLATION).split('.nii')[0]
 if SPACE == 'T1w':
     # parcellation in subject's space
     sub_parc = os.path.join(in_dir, parcellation_fname + '_%s_space-' + SPACE + '_transformed.nii')
@@ -162,8 +162,10 @@ def rsa_reg(neural_v, model_mat, val_label=None, rank_order=True):
     # orthogonalize
     model_mat = ortho_mat(model_mat)
     if rank_order:
-        neural_v = np.argsort(neural_v, axis=0)
-        model_mat = np.argsort(model_mat, axis=0)
+        neural_v = rankdata(neural_v)
+        # rank each column separately
+        for c in range(model_mat.shape[1]):
+            model_mat[:,c] = rankdata(model_mat[:,c])
     # add column of ones (constant)
     X=np.hstack((model_mat, np.ones((model_mat.shape[0],1))))
     # Convert neural DSM to column vector
@@ -191,9 +193,9 @@ def rsa_cor(neural_v, model_mat):
     out = out[0][0,1:]
     return(out)
 
-def run_rsa_roi(roi_data, model_mat, corr='corr', val_label=None):
+def run_rsa_roi(roi_data, model_mat, corr='corr', dist='correlation', val_label=None):
     # calculate roi RDM (lower triangle)
-    roi_tri = pdist(roi_data, metric='correlation')
+    roi_tri = pdist(roi_data, metric=dist)
     roi_tri[np.isnan(roi_tri)] = 0.
     # run regression
     if corr=='corr':
@@ -203,12 +205,12 @@ def run_rsa_roi(roi_data, model_mat, corr='corr', val_label=None):
     out_dict = {'result':res}
     return(out_dict)
 
-def run_rsa_searchlight(sl, model_mat, corr='corr', val_label=None):
+def run_rsa_searchlight(sl, model_mat, corr='corr', dist='correlation', val_label=None):
     def calc_rsa(data, sl_mask, myrad, bcvar, model_mat=model_mat, val_label=val_label):
         data4D = data[0]
         labels = NODES
         bolddata_sl = data4D.reshape(sl_mask.shape[0] * sl_mask.shape[1] * sl_mask.shape[2], data[0].shape[3]).T
-        res_dict = run_rsa_roi(bolddata_sl, model_mat, corr, val_label=val_label)
+        res_dict = run_rsa_roi(bolddata_sl, model_mat, corr, val_label=val_label, dist=dist)
         res = res_dict['result']
         return res
     print(str(datetime.now())+ ": Begin Searchlight")
@@ -229,7 +231,7 @@ def get_roi_csv_val(df, roi, val_col='r'):
         out_dict[p] = v
     return(out_dict)
 
-def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None, pred=None):
+def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None, pred=None, dist='correlation'):
     """
     sub: str subject ID
     model_rdms: dictionary with model names as keys and lower triangles of RDMs as elements
@@ -250,8 +252,8 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
 
     parc_label = SL+str(SL_RADIUS) if isSl(procedure) else PARC_LAB
     # make output directories if they don't exist
-    if not os.path.exists(out_dir % (sub, corr_label)):
-        os.makedirs(out_dir % (sub, corr_label))
+    if not os.path.exists(out_dir % (sub, corr_label, dist)):
+        os.makedirs(out_dir % (sub, corr_label, dist))
 
     # tasks to run
     if not isinstance(tasks, list):
@@ -314,7 +316,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
         out_data_dict = {}
         if isParc(procedure):
             # out csv filename
-            sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label)
+            sub_csv_fname = csv_fname % (sub, corr_label, dist, sub, task, corr_label, parc_label, val_label)
             if (not overwrite) and os.path.isfile(sub_csv_fname):
                     read_bool = True
                     # read in csv if already exists
@@ -374,7 +376,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
                     roi_mask = parc_data==parc_roi
                     roi_mask = roi_mask.astype(int)
                     roi_data = get_roi_data(sub_data, roi_mask)
-                    res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr, val_label=val_label)
+                    res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr, val_label=val_label, dist=dist)
                     res = res_dict['result']
                 # for each model, save the result to its image in out_data_dict
                 for i,k in enumerate(model_keys):
@@ -431,7 +433,7 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
             print(str(datetime.now())+ ": Shape of searchlight")
             print(sl.shape)
             # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-            sl_result = run_rsa_searchlight(sl, model_rdms_mat, corr=corr, val_label=val_label)
+            sl_result = run_rsa_searchlight(sl, model_rdms_mat, corr=corr, val_label=val_label, dist=dist)
             end_time = time.time()
 
             # Print outputs
@@ -455,244 +457,12 @@ def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, 
             # unindent if saving images in parcellation (in addition to csv)
             # save images
             for k in out_data_dict.keys():
-                fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
+                fname = out_fname % (sub, corr_label, dist, sub, task, corr_label, parc_label, val_label, k)
                 save_nii( out_data_dict[k], ref_img, fname )
         # add to output array
         out_tasks[task] = out_data_dict
         out_tasks['ref_img'] = ref_img
     return(out_tasks)
-
-#
-# def run_rsa_sub(sub, model_rdms, procedure, corr, tasks=TASKS, overwrite=False, val_label=None):
-#     """
-#     sub: str subject ID
-#     model_rdms: dictionary with model names as keys and lower triangles of RDMs as elements
-#     tasks: array of task names: friend, number, avg
-#     """
-#     # check type of input arguments
-#
-#     # subject id
-#     sub = convert2subid(sub)
-#
-#     # get labels
-#     corr_label = 'spear' if corr=='corr' else 'reg'
-#     if val_label is None:
-#         val_label = 'r' if corr=='corr' else 'beta'
-#
-#     parc_label = SL+str(SL_RADIUS) if isSl(procedure) else str(N_PARCELS)
-#     # make output directories if they don't exist
-#     if not os.path.exists(out_dir % (sub, corr_label)):
-#         os.makedirs(out_dir % (sub, corr_label))
-#
-#     # tasks to run
-#     if not isinstance(tasks, list):
-#         tasks = [tasks]
-#
-#     # dictionary of model representational dissimilarity matrices (lower triangles)
-#     if not isinstance(model_rdms, dict):
-#         if isinstance(model_rdms, list):
-#             model_rdms={'model':model_rdms}
-#         else:
-#             print("ERROR: model_rdms input must be dictionary")
-#             exit(1)
-#
-#     # procedure to run
-#     if procedure not in PROCEDURES_ALL:
-#         print("ERROR: procedure is not in PROCEDURES_ALL")
-#         print(PROCEDURES_ALL)
-#         exit(1)
-#
-#     # reference image for saving parcellation output
-#     parcellation_template = nib.load(MNI_PARCELLATION, mmap=False)
-#     parcellation_template.set_data_dtype(np.double)
-#
-#     # get model names
-#     model_keys = model_rdms.keys()
-#     print(str(datetime.now())+ ": Using models ")
-#     print(model_keys)
-#     # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-#     for i,k in enumerate(model_keys):
-#         if i == 0:
-#             # if first model, setup matrix
-#             model_rdms_mat = [model_rdms[k]]
-#         else:
-#             # add next matrix as row
-#             model_rdms_mat = np.vstack((model_rdms_mat, model_rdms[k]))
-#
-#     # transpose so that each column corresponds to each measure
-#     model_rdms_mat = np.transpose(model_rdms_mat)
-#
-#     out_tasks = {}
-#     # iterate through inputted tasks
-#     for task in tasks:
-#         # read in subject's image
-#         sub_template = nib.load(data_fnames % (sub, sub, TASKS[0], 0), mmap=False)
-#         sub_dims = sub_template.get_data().shape + (N_NODES,)
-#         sub_data = np.empty(sub_dims)
-#         for n in range(N_NODES):
-#             print(str(datetime.now()) + ": Reading in node " + str(n))
-#             if task=='avg':
-#                 # average this node's data from both runs
-#                 d1 = load_nii(data_fnames % (sub, sub, TASKS[0], n))
-#                 d2 = load_nii(data_fnames % (sub, sub, TASKS[1], n))
-#                 d = (d1+d2)/2
-#             else:
-#                 d = load_nii(data_fnames % (sub, sub, task, n))
-#             # save to fourth dimension
-#             sub_data[:,:,:,n] = d
-#
-#         out_data_dict = {}
-#         if isSl(procedure):
-#             ref_img = sub_template
-#             # node labels
-#             bcvar = None #range(N_NODES) #None
-#             # searchlight radius
-#             sl_rad = int(SL_RADIUS)
-#             max_blk_edge = 5
-#             # mask
-#             if use_mask:
-#                 # load all functional masks and make largest mask
-#                 t = task if task in TASKS else "*"
-#                 print(str(datetime.now()) + ": Reading in masks")
-#                 func_mask_names = glob.glob(sub_mask_fname % (sub, sub, t))
-#                 for i,m in enumerate(func_mask_names):
-#                     print(m)
-#                     m_data = load_nii(m)
-#                     if i == 0:
-#                         m_sum = deepcopy(m_data)
-#                     else:
-#                         m_sum += m_data
-#                 whole_brain_mask = np.where(m_sum > 0, 1, 0)
-#                 whole_brain_mask_dil = binary_dilation(whole_brain_mask, iterations=int(SL_RADIUS)).astype(whole_brain_mask.dtype)
-#                 mask = whole_brain_mask_dil
-#             else:
-#                 mask = deepcopy(d)
-#                 mask.fill(1)
-#
-#             # Create the searchlight object
-#             begin_time = time.time()
-#             sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge, shape=Ball)
-#             print(str(datetime.now())+ ": Setup searchlight inputs")
-#             print(str(datetime.now())+ ": Input data shape: " + str(sub_data.shape))
-#
-#             # Distribute the information to the searchlights (preparing it to run)
-#             print(str(datetime.now())+ ": Distributing searchlight")
-#             sl.distribute([sub_data], mask)
-#             # Data that is needed for all searchlights is sent to all cores via
-#             # the sl.broadcast function. In this example, we are sending the
-#             # labels for classification to all searchlights.
-#             print(str(datetime.now())+ ": Broadcasting bcvar")
-#             sl.broadcast(bcvar)
-#
-#             print(str(datetime.now())+ ": Shape of searchlight")
-#             print(sl.shape)
-#             # turn model dictionary into matrix, s.t. column = model RDM lower triangle
-#             sl_result = run_rsa_searchlight(sl, model_rdms_mat, val_label=val_label)
-#             end_time = time.time()
-#
-#             # Print outputs
-#             print(str(datetime.now())+ ": Number of searchlights run: " + str(len(sl_result[mask==1])))
-#             print(str(datetime.now())+ ': Total searchlight duration (including start up time): %.2f' % (end_time - begin_time))
-#             # separate values
-#             for i,k in enumerate(model_keys):
-#                 out_data_dict[k] = deepcopy(sl_result)
-#                 for x in range(sl_result.shape[0]):
-#                     for y in range(sl_result.shape[1]):
-#                         for z in range(sl_result.shape[2]):
-#                             val = sl_result[x,y,z]
-#                             if val is None:
-#                                 out_val = 0.
-#                             else:
-#                                 out_val = val[i]
-#                             out_data_dict[k][x,y,z] = out_val
-#
-#                 out_data_dict[k] = out_data_dict[k].astype('double')
-#
-#         elif isParc(procedure):
-#             # out csv filename
-#             sub_csv_fname = csv_fname % (sub, corr_label, sub, task, corr_label, parc_label)
-#             if (not overwrite) and os.path.isfile(sub_csv_fname):
-#                     read_bool = True
-#                     # read in csv if already exists
-#                     sub_csv = pd.read_csv(sub_csv_fname)
-#                     # remove row column
-#                     sub_csv = sub_csv.iloc[:,1:]
-#                     # save all completed ROIs except for last one (since may not have been finished)
-#                     completed_rois = np.unique(sub_csv['roi'])[:-1]
-#                     sub_csv = sub_csv[sub_csv['roi'].isin(completed_rois)]
-#                     sub_csv.to_csv(sub_csv_fname)
-#                     out_csv_array = sub_csv.values.tolist()
-#             else:
-#                 if os.path.isfile(sub_csv_fname):
-#                     os.remove(sub_csv_fname)
-#                     print("Deleted "+sub_csv_fname)
-#                 read_bool = False
-#                 out_csv_array = []
-#                 completed_rois = []
-#             wtr = csv.writer(open(sub_csv_fname, 'a'), delimiter=',', lineterminator='\n')
-#             # column names for csv file
-#             colnames = ['sub','task','roi','predictor',val_label]
-#             if not read_bool:
-#                 # write out to csv
-#                 wtr.writerow(colnames)
-#             ref_img = parcellation_template
-#             # make mask
-#             parcellation = sub_parc % (sub, sub)
-#             print(str(datetime.now()) + ": Using parcellation " + parcellation)
-#             parc_data = load_nii(parcellation)
-#             roi_list = np.unique(parc_data)
-#             # remove 0 (i.e., the background)
-#             roi_list = np.delete(roi_list,0)
-#             # check if number of parcels matches global variable
-#             if N_PARCELS != len(roi_list):
-#                 print("WARNING: Number of parcels found ("+str(len(roi_list))+") does not equal N_PARCELS ("+str(N_PARCELS)+")")
-#
-#             # Run regression on each parcellation
-#             print(str(datetime.now()) + ": Starting parcellation "+ str(N_PARCELS))
-#             # get the voxels from parcellation nii
-#             out_data = ref_img.get_data().astype(np.double)
-#             # create a dictionary of nii's: one per predictor
-#             for i,k in enumerate(model_keys):
-#                 out_data_dict[k] = deepcopy(out_data)
-#             # iterate through each ROI of parcellation and run regression
-#             for r, parc_roi in enumerate(roi_list):
-#                 if parc_roi in completed_rois:
-#                     print(str(datetime.now()) + ': ROI '+str(parc_roi)+' already saved.')
-#                     # read in values from dataframe for nii
-#                     res = get_roi_csv_val(sub_csv, parc_roi, val_label)
-#                 else:
-#                     perc_done = round(((r+1) / len(roi_list)) * 100, 3)
-#                     print(str(datetime.now()) + ': Analyzing ROI '+str(parc_roi)+' -- '+str(perc_done)+'%')
-#                     # create mask for this ROI
-#                     roi_mask = parc_data==parc_roi
-#                     roi_mask = roi_mask.astype(int)
-#                     roi_data = get_roi_data(sub_data, roi_mask)
-#                     res_dict = run_rsa_roi(roi_data, model_rdms_mat, corr=corr, val_label=val_label)
-#                     res = res_dict['result']
-#                 # for each model, save the result to its image in out_data_dict
-#                 for i,k in enumerate(model_keys):
-#                     # save to dataframe if not already there
-#                     if parc_roi not in completed_rois:
-#                         val = res[i]
-#                         csv_row = [sub, task, parc_roi, k, val]
-#                         out_csv_array.append(csv_row)
-#                         # write out to csv
-#                         wtr.writerow(csv_row)
-#                     else:
-#                         val = res[k]
-#                     # update voxels
-#                     model_data = out_data_dict[k]
-#                     model_data[model_data==parc_roi] = val
-#                     out_data_dict[k] = model_data
-#         # save images
-#         for k in out_data_dict.keys():
-#             fname = out_fname % (sub, corr_label, sub, task, corr_label, parc_label, val_label, k)
-#             save_nii( out_data_dict[k], ref_img, fname )
-#         # add to output array
-#         out_tasks[task] = out_data_dict
-#         out_tasks['ref_img'] = ref_img
-#     return(out_tasks)
-#
 
 
 # def run_second_order_rsa(subs, model_rdms, procedure, corr, tasks=['avg'], overwrite=False):
