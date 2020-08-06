@@ -4,3 +4,7 @@ code/not_used
 code/*delete*
 *.pyc
 code/core*
+anats
+anats/*
+code/joblogs
+
