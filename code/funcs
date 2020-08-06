@@ -8,9 +8,6 @@ fmriprep_v=fmriprep/1.4.0 #1.3.2
 
 # subjects to exclude
 EXCLUDE_SUBS=( "204" )
-# exclude all runs that fall below (<) this threshold
-# keep all runs that are >= to this threshold
-export EXCLUDE_RUNS_THRESH=0 # 0, .65, .75
 
 # keywords
 export ALL='all'
@@ -19,6 +16,20 @@ export PARC='parc'
 export SL='sl'
 export MNI_SPACE="MNI152NLin2009cAsym"
 export T1_SPACE="T1w"
+
+# SET VARIABLES
+# exclude all runs that fall below (<) this threshold
+# keep all runs that are >= to this threshold
+export EXCLUDE_RUNS_THRESH=0 # 0, .65, .75
+export SL_RADIUS=4 # size of searchlight radius in voxels; 3, 4, 5
+export DILATE=2 # 0, 5, 10
+export MASK_NAME="MNI" # "social" or "MNI"
+export PROCEDURE=$PARC #$ALL, $SL, $PARC
+parc_lab='fun' #sch=schaefer, fun=functional, soc=full social mask, soc_clust=clusters in social mask
+export N_PARCELS=200 # number of ROIs in parcellation; only used if parc_lab=="sch" or "fun"
+export N_NETWORKS=7 #only used if parc_lab=="sch"
+export DISTANCES=( 'correlation' 'euclidean' )
+
 
 # Global Project Variables
 # directories
@@ -55,46 +66,50 @@ export N_NODES=10 # number of conditions
 export TR=0.75 # tr in seconds
 export N_TRS=514 # total number of TRS collected
 export N_TRS_DEL=3 # remove this number of TRs from beginning of each run
-export SL_RADIUS=4 # size of searchlight radius in voxels
-export DILATE=5
 export SPACES=( $T1_SPACE $MNI_SPACE ) #( "T1w" "MNI152NLin2009cAsym" ) # possible spaces
 export SPACE=${SPACES[0]}
 export STAT="t"
 export SMOOTH_FWMH=6
 export N_PERMS=10000
 export VAR_SMOOTH=10
+export CLUSTER_THRESH=1.699 #p<.05 -> 1.699 t-value; p<.01 -> 2.462
 export PROCEDURES_ALL=( ${PARC} ${SL} ) #( "parc" "sl" ), parc = parcellation, sl = searchlight
-export PROCEDURE=$PARC
 if [[ $PROCEDURE == $ALL ]]; then
   export PROCEDURES=( "${PROCEDURES_ALL[@]}" )
 else
   export PROCEDURES=( $PROCEDURE )
 fi
 
-parc_lab='fun' #sch=schaefer, fun=functional
-export N_PARCELS=200 # number of ROIs in parcellation; use 'funcparc' for functional parcellation
-export N_NETWORKS=7
-if [[ $parc_lab -eq "fun" ]]; then
-  export N_PARCELS=200 # currently only have 200 parcel version
-  export MNI_PARCELLATION="${MNI_DIR}/functional_parcellation_200/whole_brain_cluster_labels_PCA-100_k-200_order-orig_flirt-sch200_round-T.nii.gz"
-else
-  parc_lab='sch' # currently only other option
-  export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
-fi
-export PARC_LAB="${parc_lab}${N_PARCELS}"
-
+# Mask
 export MNI_GM_MASK="${MNI_DIR}/anat/2mm_tpm_gm.nii.gz"
 export MNI_MASK="${MNI_DIR}/anat/2mm_brainmask.nii.gz"
 export MNI_MASK_DIL="${MNI_DIR}/anat/2mm_brainmask_dil-5.nii.gz"
 export SOCIAL_MAP="${CODE_DIR}/social_association-test_z_FDR_0.01"
-export SOCIAL_MASK_DIL="${SOCIAL_MAP}_binary_dil-${DILATE}.nii.gz"
-export MASK_NAME="social"
+export SOCIAL_MASK_DIL="${SOCIAL_MAP}_T1_MNI_bin_dil-${DILATE}.nii.gz" #social_association-test_z_FDR_0.01_T1_MNI_bin_dil-${DILATE}.nii.gz
 if [[ $MASK_NAME == 'social' ]]; then
   export MASK="${SOCIAL_MASK_DIL}"
+  export MASK_NAME="social${DILATE}"
 else
   export MASK="${MNI_MASK_DIL}"
 fi
 
+# Parcellation
+if [[ ${parc_lab} == "fun" ]]; then
+  parc_lab="fun" #funsplit"
+  export MNI_PARCELLATION="${MNI_DIR}/functional_parcellation/whole_brain_cluster_labels_k-${N_PARCELS}_order-orig_flirt-sch200_round-T.nii.gz" #_split-atlas.nii.gz"
+elif [[ ${parc_lab} == "soc" ]]; then
+  parc_lab="2${parc_lab}"
+  export N_PARCELS=1
+  export MNI_PARCELLATION="${SOCIAL_MAP}_T1_MNI_bin_dil-2.nii.gz"
+elif [[ ${parc_lab} == "soc_clust" ]]; then
+  parc_lab="2socclustsplit"
+  export N_PARCELS=11 #9
+  export MNI_PARCELLATION="${SOCIAL_MAP}_clust_thresh-163_T1_MNI_dil-2_split-TempPFC.nii.gz"
+else
+  # default is to use schaefer
+  export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
+fi
+export PARC_LAB="${parc_lab}${N_PARCELS}"
 
 
 # filenames

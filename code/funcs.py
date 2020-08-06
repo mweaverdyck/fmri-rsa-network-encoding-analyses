@@ -26,6 +26,7 @@ T1_SPACE = os.environ['T1_SPACE']
 EXCLUDE_SUBS=["204"]
 TASKS=['friend', 'number']
 PROCEDURES_ALL=[PARC, SL]
+DISTANCES=['correlation', 'euclidean']
 
 # get project directories
 PROJECT_DIR = os.environ['PROJECT_DIR'] + '/'
