@@ -1,0 +1,67 @@
+source funcs
+setup_modules $fsl_v
+
+
+export in_dir=`get_thresh_dir ${RSA_DIR}`
+export out_dir=`get_thresh_dir ${SECOND_LEVEL_DIR}/fsl_sl${SL_RADIUS}`
+
+preds_all=( 'dist' 'deg' ) # 'sn' 'img' )
+corrs_all=( 'spear' 'reg' ) # 'spear' 'reg'
+
+preds=()
+corrs=()
+dists=()
+for arg in "$@"; do
+  if [[ " ${preds_all[@]} " =~ " ${arg} " ]]; then
+    preds=( ${preds[@]} $arg )
+  elif [[ " ${corrs_all[@]} " =~ " ${arg} " ]]; then
+    corrs=( ${corrs[@]} $arg )
+  elif [[ " ${DISTANCES[@]} " =~ " ${arg} " ]]; then
+    dists=( ${dists[@]} $arg )
+  fi
+done
+if [[ ${#preds} -eq 0 ]]; then
+  preds=( ${preds_all[@]} )
+fi
+if [[ ${#corrs} -eq 0 ]]; then
+  corrs=( ${corrs_all[@]} )
+fi
+if [[ ${#dists} -eq 0 ]]; then
+  dists=( ${dists_all[@]} )
+fi
+
+for d in "${dists[@]}"; do
+  mkdir -p ${out_dir}/${d}
+done
+
+if [[ $EXCLUDE_RUNS_THRESH > 0 ]]; then
+  tlab=${EXCLUDE_RUNS_THRESH#*.}
+  tlab=${tlab:0:2}
+  tlab="_excl-${tlab}"
+else
+  tlab=""
+fi
+
+if [[ $SPACE == $T1_SPACE ]]; then
+  #. transform_T1w-2-mni.sh $ALL
+  sdata_dir="/T1w-2-MNI"
+else
+  sdata_dir=""
+fi
+
+text2vest() {
+  design=$1
+  contrast=$2
+  group=$3
+
+  write_log $log_args "Converting ${design}.txt to ${design}.mat, ${contrast}.txt to ${contrast}.con, and ${group}.txt to ${group}.grp"
+  Text2Vest ${design}.txt ${design}.mat
+  Text2Vest ${contrast}.txt ${contrast}.con
+  Text2Vest ${group}.txt ${group}.grp
+}
+
+export preds
+export corrs
+export dists
+export tlab
+export sdata_dir
