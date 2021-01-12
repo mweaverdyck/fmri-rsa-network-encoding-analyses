@@ -25,8 +25,8 @@ export SL_RADIUS=4 # size of searchlight radius in voxels; 3, 4, 5
 export DILATE=2 # 0, 5, 10
 export MASK_NAME="MNI" # "social" or "MNI"
 export PROCEDURE=$PARC #$ALL, $SL, $PARC
-parc_lab='fun' #sch=schaefer, fun=functional, soc=full social mask, soc_clust=clusters in social mask
-export N_PARCELS=200 # number of ROIs in parcellation; only used if parc_lab=="sch" or "fun"
+parc_lab='soc_sch' #sch=schaefer, fun=functional, soc=full social mask, soc_clust=clusters in social mask, soc_sch=social mask applied to schaefer parcellation
+export N_PARCELS=50 # number of ROIs in parcellation; only used if parc_lab=="sch" or "fun"
 export N_NETWORKS=7 #only used if parc_lab=="sch"
 export DISTANCES=( 'correlation' 'euclidean' )
 
@@ -105,6 +105,10 @@ elif [[ ${parc_lab} == "soc_clust" ]]; then
   parc_lab="2socclustsplit"
   export N_PARCELS=11 #9
   export MNI_PARCELLATION="${SOCIAL_MAP}_clust_thresh-163_T1_MNI_dil-2_split-TempPFC.nii.gz"
+elif [[ ${parc_lab} == "soc_sch" ]]; then
+  parc_lab="2socsch"
+  export N_PARCELS=118
+  export MNI_PARCELLATION=${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-200Parcels7Networks_dseg_social2.nii.gz
 else
   # default is to use schaefer
   export MNI_PARCELLATION="${MNI_DIR}/schaefer/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-${N_PARCELS}Parcels${N_NETWORKS}Networks_dseg.nii.gz" #2mm_parc.nii.gz"
@@ -137,11 +141,11 @@ alias get_outline='echo "To run full analysis:
        python organize_as_BIDS.py ???
 
     4. # first level analyses (from server)
-       . run_script full ???
-       . run_script reconall fmriprep glm rsa_all ???
+       . run_script.sh full ???
+       . run_script.sh reconall fmriprep glm rsa_all ???
 
     5. # second level analyses (from server)
-       qsub qsub_level2_rsa.sh
+       . run_level2_scripts.sh
 
     QA/Sanity Checks
     # Quality Assurance tests (from mount)

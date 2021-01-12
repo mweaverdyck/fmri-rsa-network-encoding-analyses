@@ -45,7 +45,7 @@ def correct_p (t,p):
 
 corrs=['spear', 'reg']
 corr_labels = []
-tasks_all = TASKS + ['avg','diff']
+tasks_all = TASKS + ['avg']
 tasks=[]
 dists=[]
 # read in arguments
@@ -167,6 +167,7 @@ for proc in [PARC]:
                             df = pred_df[pred_df['roi']==r]
                             # task-specific tests
                             if has_task:
+                                # run relevance (diff) test
                                 if 'deg' in pred:
                                     rel_col = 'number'
                                     nonrel_col = 'friend'
@@ -180,7 +181,16 @@ for proc in [PARC]:
                                 # degrees of freedom
                                 t_df = len(df[rel_col]) - 1
                                 diff = np.mean(df[rel_col] - df[nonrel_col])
-                                con_df.loc[r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
+                                con_df.loc[con_df.shape[0]+r]=[corr_label,'diff',diff,pred,r,t,t_df,p]
+                                # run one-sample t-tests within each task
+                                for task in tasks:
+                                    t,p = ttest_1samp(df[task], popmean = 0.)
+                                    # correct p-value to one-sample
+                                    t,p = correct_p(t,p)
+                                    # degrees of freedom
+                                    t_df = len(df[task]) - 1
+                                    estimate=np.mean(df[task])
+                                    con_df.loc[con_df.shape[0]+r]=[corr_label,task,estimate,pred,r,t,t_df,p]
                             else:
                                 # test where the predictor is encoded across tasks
                                 t,p = ttest_1samp(df['avg'], popmean = 0.)
@@ -202,21 +212,29 @@ for proc in [PARC]:
                         #out_fname = os.path.join(out_dir, make_bids_str(in_fname_atts)+'.csv')
                         out_fname_atts['dir'] = 'none'
                         if has_task:
-                            out_fname_atts['task'] = 'diff'
-                            out_fname_atts['test'] = 'pairedt'
-                            out_fname_atts['val2'] = 'all'
-                            out_fname_atts['correction'] = 'all'
-                            del out_fname_atts['dir']
-                            out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
-                            con_df.to_csv(out_fname)
-                            out_fname_atts['val2'] = 'p'
-                            out_fname_atts['dir'] = 'rev'
-                            out_fname_atts['correction'] = 'none'
-                            out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                            save_parcel(con_df['p'], out_fname)
-                            out_fname_atts['correction'] = 'fdr'
-                            out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
-                            save_parcel(con_df['FDR'], out_fname)
+                            for t in np.unique(con_df['test']):
+                                df = con_df[con_df['test']==t]
+                                out_fname_atts['task'] = t
+                                if t=="diff":
+                                    out_fname_atts['test'] = 'pairedt'
+                                else:
+                                    out_fname_atts['test'] = 'singlesamplet'
+                                # save csv
+                                out_fname_atts['val2'] = 'all'
+                                del out_fname_atts['dir']
+                                out_fname_atts['correction'] = 'all'
+                                out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.csv')
+                                df.to_csv(out_fname)
+                                print(out_fname + ' saved.')
+                                # save niftis
+                                out_fname_atts['val2'] = 'p'
+                                out_fname_atts['dir'] = 'rev'
+                                out_fname_atts['correction'] = 'none'
+                                out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                                save_parcel(df['p'], out_fname)
+                                out_fname_atts['correction'] = 'fdr'
+                                out_fname = os.path.join(out_dir, make_bids_str(out_fname_atts)+'.nii')
+                                save_parcel(df['FDR'], out_fname)
                         else:
                             # save csv
                             del out_fname_atts['dir']

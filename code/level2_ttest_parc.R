@@ -1,4 +1,8 @@
 #!/usr/bin/env Rscript
+# load funcs variables
+project_dir <- system("source ~/.bash_profile; echo ${data_dir}", intern=T)
+code_dir = paste(project_dir, "code", sep="/")
+source(paste(code_dir,"funcs_get_vars.R", sep='/'))
 
 # load packages
 library(plyr)
@@ -7,41 +11,37 @@ library(tidyr)
 if(!require(pracma)) install.packages("pracma"); require(pracma)
 if(!require(oro.nifti)) install.packages("oro.nifti"); require(oro.nifti)
 
+# MNI parcellation
+parcellation <- round(readNIfTI(MNI_PARCELLATION))
 
+corr_label='spear'
+val_label=if (corr_label=='spear') 'r' else 'beta'
+
+out_fname <- paste0("stat-",STAT, 
+                    "_corr-", corr_label,
+                    "_parc-", PARC_LAB,
+                    "_tail-1")
+
+
+# function to save stats into nifti
 save_parcel <- function(values,file){
-  outmap <- parcel
+  outmap <- parcellation
   outmap@datatype <- 16
   outmap@bitpix <- 32
-  for (i in 1:n_parcels){
+  for (i in 1:N_PARCELS){
     outmap@.Data[outmap@.Data==i] <- values[i]
   }
   writeNIfTI(outmap,file)
   print(paste(file, "saved."))
 }
 
-
-n_parcels=200
-parc_label=as.character(n_parcels)
-stat_label='t'
-corr_label='spear'
-val_label=if (corr_label=='spear') 'r' else 'beta'
-
-out_fname <- paste0("stat-",stat_label, 
-                    "_corr-", corr_label,
-                    "_parc-", parc_label,
-                    "_tail-1")
-
-# MNI parcellation
-parcel_fname <- paste0('../bids/tpl-MNI152NLin2009cAsym_res-02_atlas-Schaefer2018_desc-',parc_label,'Parcels7Networks_dseg.nii.gz')
-parcel <- round(readNIfTI(parcel_fname))
-
 # read in all subject files into single data frame
-rsa_dir <- paste0('../bids/derivatives/level1/rsa/*/',corr_label)
-out_dir <- paste0('../bids/derivatives/level2/parc',parc_label,'/')
+rsa_dir <- paste0(RSA_DIR,'/*/',corr_label)
+out_dir <- paste0(SECOND_LEVEL_DIR,'/parc',PARC_LAB,'/')
 data_fnames <- dir(Sys.glob(rsa_dir),
-                   pattern = paste0("\\_stat-", stat_label,
+                   pattern = paste0("\\_stat-", STAT,
                                     "_corr-", corr_label,
-                                    "_parc-", parc_label,
+                                    "_parc-", PARC_LAB,
                                     "_val-", val_label,
                                     "_roi_stats.csv$"),
                    recursive=F, full.names = T)
@@ -67,9 +67,9 @@ print(tasks)
 rois <- unique(all_data$roi)
 print("Number of ROIs found: ")
 print(length(rois))
-if (length(rois) != n_parcels){
-  print("WARNING: number of ROIs does not match n_parcels:")
-  print(str(length(rois)), parc_label)
+if (length(rois) != N_PARCELS){
+  print("WARNING: number of ROIs does not match N_PARCELS:")
+  print(str(length(rois)), PARC_LAB)
 }
 
 # separate tasks into 2 columns
