@@ -94,6 +94,9 @@ for pred in "${preds[@]}"; do
       #vox_thresh=1.645 #2.33 # z-score to get p<0.01
       out_t_test=${out_dir}/${dist}/task-diff_${fname_root}_mask-${MASK_NAME}_smooth-${SMOOTH_FWMH}_test-pairedt_vsmooth-${VAR_SMOOTH}_nperm-${N_PERMS}_clust-${CLUSTER_THRESH} #_vthresh-${vox_thresh}
       # http://web.mit.edu/fsl_v5.0.10/fsl/doc/wiki/Randomise(2f)UserGuide.html
+      if [[ $MASK_NAME == "sigvox" ]]; then
+        MASK="${MASK/PRED/$pred}"
+      fi
       randomise -i ${img_4D_smooth} -m ${MASK} -o ${out_t_test} -d ${design}.mat -t ${contrast}.con -e ${group}.grp -v ${VAR_SMOOTH} -T -x -n ${N_PERMS} -C ${CLUSTER_THRESH} --uncorrp -D | tee -a $log_file # -C ${vox_thresh}
 
       write_log $log_args "Files ${out_t_test}* saved."
