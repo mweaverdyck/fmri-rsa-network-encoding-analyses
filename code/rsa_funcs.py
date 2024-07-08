@@ -3,6 +3,7 @@
 from scipy.spatial.distance import pdist, squareform, mahalanobis, euclidean
 from scipy.stats import spearmanr, pearsonr, norm, zscore, rankdata
 from scipy.ndimage.morphology import binary_dilation
+from scipy.linalg import orth
 from brainiak.searchlight.searchlight import Searchlight, Ball
 from brainiak.fcma.preprocessing import prepare_searchlight_mvpa_data
 from brainiak import io
@@ -155,7 +156,8 @@ def get_model_RDM_dict( node_mapping, meas_name_array,
 
 def ortho_mat(model_mat):
     model_mat = zscore(model_mat)
-    model_mat,R = np.linalg.qr(model_mat)
+    model_mat = orth(model_mat)
+    #model_mat,R = np.linalg.qr(model_mat)
     return(model_mat)
 
 def rsa_reg(neural_v, model_mat, val_label=None, rank_order=True):
